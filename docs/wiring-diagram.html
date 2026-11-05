@@ -1,0 +1,404 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mower Wiring Diagram</title>
+<style>
+:root {
+  --bg: #f7f6f2; --fg: #1d1d1b; --mut: #5f5e59; --line: #8d8b84;
+  --new: #ffffff; --old: #ece9e0; --opt: #f7f6f2;
+  --stop: #c9271d; --stopbg: #fde8e6;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #171716; --fg: #efeee9; --mut: #aaa8a0; --line: #6d6b65;
+    --new: #232321; --old: #2e2d2a; --opt: #171716;
+    --stop: #ff6b5f; --stopbg: #3b1917;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #171716; --fg: #efeee9; --mut: #aaa8a0; --line: #6d6b65;
+  --new: #232321; --old: #2e2d2a; --opt: #171716;
+  --stop: #ff6b5f; --stopbg: #3b1917;
+}
+html, body { height: 100%; }
+body { margin: 0; display: flex; flex-direction: column; height: 100dvh; background: var(--bg); color: var(--fg);
+  font: 14px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; overflow: hidden; }
+header { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; padding: 8px 16px; border-bottom: 1px solid var(--line); }
+h1 { font-size: 16px; margin: 0; }
+.sub { color: var(--mut); margin: 0; font-size: 12.5px; flex: 1 1 320px; }
+.tools { display: flex; gap: 4px; align-items: center; }
+button { font: inherit; font-weight: 600; min-width: 36px; height: 36px; padding: 0 10px; color: var(--fg); background: var(--new);
+  border: 1px solid var(--line); border-radius: 6px; cursor: pointer; }
+button:hover { background: var(--old); }
+#pct { min-width: 48px; text-align: center; font-variant-numeric: tabular-nums; color: var(--mut); font-size: 12.5px; }
+main { flex: 1; min-height: 0; position: relative; }
+svg { display: block; width: 100%; height: 100%; touch-action: none; cursor: grab; user-select: none; -webkit-user-select: none; }
+svg.drag { cursor: grabbing; }
+details { border-top: 1px solid var(--line); padding: 8px 16px; font-size: 13.5px; max-height: 40vh; overflow-y: auto; }
+summary { cursor: pointer; font-weight: 600; }
+path { fill: none; stroke-linejoin: round; }
+.box { stroke: var(--line); stroke-width: 1.3; }
+.box.new { fill: var(--new); } .box.old { fill: var(--old); }
+.box.opt { fill: var(--opt); stroke-dasharray: 6 4; }
+.box.stop { fill: var(--stopbg); stroke: var(--stop); stroke-width: 2.5; }
+text { fill: var(--fg); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+.t { font-size: 14.5px; font-weight: 650; }
+.s { font-size: 11.5px; fill: var(--mut); }
+.p { font-size: 12px; }
+.port { font-size: 12px; font-weight: 650; fill: var(--mut); }
+.w { font-size: 11px; fill: var(--mut); }
+.tiny { font-size: 10.5px; font-weight: 650; }
+.warn { font-size: 11.5px; font-weight: 650; fill: var(--stop); }
+.stoptxt { font-size: 12px; font-weight: 700; fill: var(--stop); }
+.stopsub { font-size: 10.5px; fill: var(--mut); }
+ul { margin: 6px 0 0; padding-left: 20px; max-width: 900px; }
+li { margin: 3px 0; }
+</style>
+</head>
+<body>
+<header>
+<h1>Mower wiring diagram</h1>
+<p class="sub">Draft, not bench-tested. Existing wires are drawn in their real colors. New wires use suggested colors. All grounds tie together, including ones not drawn.</p>
+<div class="tools">
+<button id="out" aria-label="Zoom out">−</button><span id="pct">100%</span><button id="in" aria-label="Zoom in">+</button><button id="fit">Fit</button>
+</div>
+</header>
+<main>
+<svg id="d" viewBox="0 0 1500 930" role="img" aria-label="Wiring diagram of the mower autopilot, with the Pixhawk at the center, radio, GPS and WiFi on the left, and relay board, key switch, main relay and drive electronics on the right.">
+<rect class="box new" x="580" y="240" width="210" height="530" rx="7"/>
+<text class="t" x="590" y="260">Pixhawk 6C Mini</text>
+<rect class="box new" x="580" y="240" width="210" height="530" rx="7" style="stroke-width:2.5"/>
+<text class="t" x="685" y="262" text-anchor="middle">Pixhawk 6C Mini</text>
+<rect class="box new" x="150" y="262" width="150" height="100" rx="7"/>
+<text class="t" x="160" y="282">WTRTK-982DT</text>
+<text class="s" x="160" y="299">RXD/TXD group</text>
+<text class="port" x="590" y="280" text-anchor="start">GPS2</text>
+<path d="M300 297 L580 297" stroke="#d92d20" stroke-width="2.2"/>
+<text class="p" x="292" y="301" text-anchor="end">VCC</text>
+<text class="p" x="590" y="301" text-anchor="start">1  5V</text>
+<path d="M300 316 L580 316" stroke="#16a34a" stroke-width="2.2"/>
+<text class="p" x="292" y="320" text-anchor="end">RXD</text>
+<text class="p" x="590" y="320" text-anchor="start">2  TX</text>
+<text class="w" x="440.0" y="312" text-anchor="middle">Pixhawk TX to 982 RXD</text>
+<path d="M300 335 L580 335" stroke="#8a8a8a" stroke-width="4.2"/>
+<path d="M300 335 L580 335" stroke="#f5f5f5" stroke-width="2.2"/>
+<text class="p" x="292" y="339" text-anchor="end">TXD</text>
+<text class="p" x="590" y="339" text-anchor="start">3  RX</text>
+<text class="w" x="440.0" y="331" text-anchor="middle">982 TXD to Pixhawk RX</text>
+<path d="M300 354 L580 354" stroke="#8a8a8a" stroke-width="4.2"/>
+<path d="M300 354 L580 354" stroke="#111111" stroke-width="2.2"/>
+<text class="p" x="292" y="358" text-anchor="end">GND</text>
+<text class="p" x="590" y="358" text-anchor="start">6  GND</text>
+<rect class="box new" x="18" y="262" width="92" height="38" rx="7"/>
+<text class="t" x="28" y="282">M antenna</text>
+<rect class="box new" x="18" y="322" width="92" height="38" rx="7"/>
+<text class="t" x="28" y="342">S antenna</text>
+<path d="M110 281 L150 281" stroke="#6b7280" stroke-width="2.2"/>
+<path d="M110 341 L150 341" stroke="#6b7280" stroke-width="2.2"/>
+<text class="w" x="130" y="275" text-anchor="middle">M</text>
+<text class="w" x="130" y="335" text-anchor="middle">S</text>
+<rect class="box new" x="150" y="392" width="150" height="96" rx="7"/>
+<text class="t" x="160" y="412">ESP32-S3</text>
+<text class="s" x="160" y="429">Stock DroneBridge</text>
+<text class="port" x="590" y="407" text-anchor="start">TELEM1</text>
+<path d="M300 424 L580 424" stroke="#d92d20" stroke-width="2.2"/>
+<text class="p" x="292" y="428" text-anchor="end">5V</text>
+<text class="p" x="590" y="428" text-anchor="start">1  5V</text>
+<path d="M300 443 L580 443" stroke="#16a34a" stroke-width="2.2"/>
+<text class="p" x="292" y="447" text-anchor="end">GPIO41 RX</text>
+<text class="p" x="590" y="447" text-anchor="start">2  TX</text>
+<text class="w" x="440.0" y="439" text-anchor="middle">Pixhawk TX to ESP32 RX</text>
+<path d="M300 462 L580 462" stroke="#8a8a8a" stroke-width="4.2"/>
+<path d="M300 462 L580 462" stroke="#f5f5f5" stroke-width="2.2"/>
+<text class="p" x="292" y="466" text-anchor="end">GPIO42 TX</text>
+<text class="p" x="590" y="466" text-anchor="start">3  RX</text>
+<text class="w" x="440.0" y="458" text-anchor="middle">ESP32 TX to Pixhawk RX</text>
+<path d="M300 481 L580 481" stroke="#8a8a8a" stroke-width="4.2"/>
+<path d="M300 481 L580 481" stroke="#111111" stroke-width="2.2"/>
+<text class="p" x="292" y="485" text-anchor="end">GND</text>
+<text class="p" x="590" y="485" text-anchor="start">6  GND</text>
+<rect class="box new" x="20" y="410" width="92" height="60" rx="7"/>
+<text class="t" x="30" y="430">Mudi 7</text>
+<text class="s" x="30" y="447">Cellular, RTK</text>
+<text class="s" x="30" y="462">corrections</text>
+<path d="M112 440 L150 440" stroke="#6b7280" stroke-width="2.2" stroke-dasharray="5 4"/>
+<text class="w" x="131" y="433" text-anchor="middle">WiFi</text>
+<rect class="box new" x="150" y="522" width="150" height="78" rx="7"/>
+<text class="t" x="160" y="542">HOTRC SBUS-A</text>
+<text class="port" x="590" y="537" text-anchor="start">RC IN</text>
+<path d="M300 552 L580 552" stroke="#ea7317" stroke-width="2.2"/>
+<text class="p" x="292" y="556" text-anchor="end">SBUS</text>
+<text class="p" x="590" y="556" text-anchor="start">S</text>
+<path d="M300 571 L580 571" stroke="#d92d20" stroke-width="2.2"/>
+<text class="p" x="292" y="575" text-anchor="end">+</text>
+<text class="p" x="590" y="575" text-anchor="start">+  5V</text>
+<path d="M300 590 L580 590" stroke="#8a8a8a" stroke-width="4.2"/>
+<path d="M300 590 L580 590" stroke="#111111" stroke-width="2.2"/>
+<text class="p" x="292" y="594" text-anchor="end">-</text>
+<text class="p" x="590" y="594" text-anchor="start">-  GND</text>
+<rect class="box old" x="20" y="535" width="92" height="48" rx="7"/>
+<text class="t" x="30" y="555">CT-6A</text>
+<text class="s" x="30" y="572">Transmitter</text>
+<path d="M112 559 L150 559" stroke="#6b7280" stroke-width="2.2" stroke-dasharray="5 4"/>
+<text class="w" x="131" y="552" text-anchor="middle">2.4G</text>
+<rect class="box opt" x="150" y="634" width="150" height="96" rx="7"/>
+<text class="t" x="160" y="654" text-anchor="start">TFmini Plus</text>
+<text class="s" x="160" y="671" text-anchor="start">Optional, forward</text>
+<text class="port" x="590" y="649" text-anchor="start">TELEM2</text>
+<path d="M300 666 L580 666" stroke="#d92d20" stroke-width="2.2" stroke-dasharray="6 4"/>
+<text class="p" x="292" y="670" text-anchor="end">5V</text>
+<text class="p" x="590" y="670" text-anchor="start">1  5V</text>
+<path d="M300 685 L580 685" stroke="#16a34a" stroke-width="2.2" stroke-dasharray="6 4"/>
+<text class="p" x="292" y="689" text-anchor="end">RX</text>
+<text class="p" x="590" y="689" text-anchor="start">2  TX</text>
+<path d="M300 704 L580 704" stroke="#8a8a8a" stroke-width="4.2"/>
+<path d="M300 704 L580 704" stroke="#f5f5f5" stroke-width="2.2" stroke-dasharray="6 4"/>
+<text class="p" x="292" y="708" text-anchor="end">TX</text>
+<text class="p" x="590" y="708" text-anchor="start">3  RX</text>
+<path d="M300 723 L580 723" stroke="#8a8a8a" stroke-width="4.2"/>
+<path d="M300 723 L580 723" stroke="#111111" stroke-width="2.2" stroke-dasharray="6 4"/>
+<text class="p" x="292" y="727" text-anchor="end">GND</text>
+<text class="p" x="590" y="727" text-anchor="start">6  GND</text>
+<rect class="box new" x="1000" y="280" width="250" height="240" rx="7"/>
+<text class="t" x="1010" y="300">8-relay board</text>
+<text class="s" x="1010" y="317">Keep VCC/JD-VCC jumper on</text>
+<text class="s" x="1010" y="332">R3-R8 spare</text>
+<text class="port" x="780" y="325" text-anchor="end">TELEM2, power only</text>
+<path d="M790 345 L1000 345" stroke="#d92d20" stroke-width="2.2"/>
+<text class="p" x="780" y="349" text-anchor="end">1  5V</text>
+<text class="p" x="1008" y="349" text-anchor="start">VCC</text>
+<text class="w" x="895.0" y="341" text-anchor="middle">5V to relay board</text>
+<path d="M790 370 L1000 370" stroke="#8a8a8a" stroke-width="4.2"/>
+<path d="M790 370 L1000 370" stroke="#111111" stroke-width="2.2"/>
+<text class="p" x="780" y="374" text-anchor="end">6  GND</text>
+<text class="p" x="1008" y="374" text-anchor="start">GND</text>
+<text class="port" x="780" y="395" text-anchor="end">AUX (FMU)</text>
+<path d="M790 412 L1000 412" stroke="#2563eb" stroke-width="2.2"/>
+<text class="p" x="780" y="416" text-anchor="end">AUX1 S (pin 50)</text>
+<text class="p" x="1008" y="416" text-anchor="start">IN1</text>
+<text class="w" x="895.0" y="408" text-anchor="middle">R1 tracks, your blue wire</text>
+<path d="M790 437 L1000 437" stroke="#7c3aed" stroke-width="2.2"/>
+<text class="p" x="780" y="441" text-anchor="end">AUX2 S (pin 51)</text>
+<text class="p" x="1008" y="441" text-anchor="start">IN2</text>
+<text class="w" x="895.0" y="433" text-anchor="middle">R2 engine, your purple wire</text>
+<rect class="box old" x="30" y="30" width="180" height="80" rx="7"/>
+<text class="t" x="40" y="50">Battery, 24 V</text>
+<text class="s" x="40" y="67">2 x 12 V in series</text>
+<text class="s" x="40" y="82">Starter direct, unchanged</text>
+<rect class="box new" x="600" y="110" width="170" height="72" rx="7"/>
+<text class="t" x="610" y="130">PM02 V3</text>
+<text class="s" x="610" y="147">7-51 V in, 5.2 V 3 A out</text>
+<text class="s" x="610" y="162">XT60 output unused, cover it</text>
+<path d="M685 182 L685 240" stroke="#d92d20" stroke-width="4"/>
+<text class="w" x="697" y="216" text-anchor="start">6-pin to POWER1</text>
+<rect class="box old" x="890" y="45" width="230" height="110" rx="7"/>
+<text class="t" x="900" y="65">Key: the hard stop</text>
+<text class="s" x="900" y="82">Black = kill wire, to harness gray</text>
+<text class="s" x="900" y="97">Yellow = ground</text>
+<text class="s" x="900" y="112">Black-yellow closes when key off</text>
+<path d="M210 70 L890 70" stroke="#d92d20" stroke-width="3"/>
+<text class="w" x="550" y="63" text-anchor="middle">Battery 24 V to key (existing)</text>
+<path d="M890 135 L770 135" stroke="#d92d20" stroke-width="3"/>
+<rect class="box new" x="810" y="123" width="42" height="24" rx="4"/>
+<text class="tiny" x="831" y="139" text-anchor="middle">FUSE</text>
+<text class="w" x="830" y="116" text-anchor="middle">Tap key side</text>
+<rect class="box old" x="1335" y="45" width="150" height="105" rx="7"/>
+<text class="t" x="1345" y="65">Main relay</text>
+<text class="s" x="1345" y="82">MG686, 24 V 120 A</text>
+<text class="s" x="1345" y="97">Coil 0.09 A</text>
+<text class="s" x="1345" y="112">Black coil wire to GND</text>
+<path d="M120 30 L120 16 L1410 16 L1410 45" stroke="#d92d20" stroke-width="5"/>
+<text class="w" x="650" y="11" text-anchor="middle">Heavy battery + to main relay left lug (existing)</text>
+<path d="M1120 100 L1290 100 L1290 330 L1250 330" stroke="#2563eb" stroke-width="3"/>
+<text class="w" x="1205" y="94" text-anchor="middle">Blue wire, key side</text>
+<text class="p" x="1242" y="334" text-anchor="end">R1 COM</text>
+<path d="M1250 365 L1360 365 L1360 150" stroke="#2563eb" stroke-width="3"/>
+<text class="p" x="1242" y="369" text-anchor="end">R1 NO</text>
+<text class="w" x="1366" y="255" text-anchor="start">Blue wire,</text>
+<text class="w" x="1366" y="269" text-anchor="start">coil side</text>
+<text class="w" x="1444" y="300" text-anchor="end">Right lug</text>
+<path d="M1030 280 L1030 155" stroke="#8a8a8a" stroke-width="5"/>
+<path d="M1030 280 L1030 155" stroke="#111111" stroke-width="3"/>
+<path d="M1075 280 L1075 155" stroke="#eab308" stroke-width="3"/>
+<text class="w" x="1023" y="212" text-anchor="end">R2 COM to</text>
+<text class="w" x="1023" y="226" text-anchor="end">switch black</text>
+<text class="w" x="1082" y="212" text-anchor="start">R2 NC to</text>
+<text class="w" x="1082" y="226" text-anchor="start">switch yellow</text>
+<rect class="box old" x="1170" y="165" width="110" height="62" rx="7"/>
+<text class="t" x="1180" y="185">Engine</text>
+<text class="s" x="1180" y="202">Grounded gray</text>
+<text class="s" x="1180" y="217">= engine killed</text>
+<path d="M1110 155 L1110 178 L1170 178" stroke="#9ca3af" stroke-width="2"/>
+<rect class="box old" x="1000" y="570" width="250" height="160" rx="7"/>
+<text class="t" x="1010" y="590">KEYIUAV box</text>
+<text class="s" x="1010" y="607">Mixes and converts to speed + reverse</text>
+<text class="s" x="1010" y="622">Own power, unchanged</text>
+<text class="s" x="1010" y="637">Stops when pulses vanish (tested)</text>
+<path d="M790 650 L1000 650" stroke="#eab308" stroke-width="2.2"/>
+<text class="p" x="780" y="654" text-anchor="end">MAIN1 S</text>
+<text class="p" x="1008" y="654" text-anchor="start">Yellow: fore-aft</text>
+<text class="w" x="895.0" y="646" text-anchor="middle">Fore-aft</text>
+<path d="M790 680 L1000 680" stroke="#8a8a8a" stroke-width="4.2"/>
+<path d="M790 680 L1000 680" stroke="#f5f5f5" stroke-width="2.2"/>
+<text class="p" x="780" y="684" text-anchor="end">MAIN3 S</text>
+<text class="p" x="1008" y="684" text-anchor="start">White: differential</text>
+<text class="w" x="895.0" y="676" text-anchor="middle">Differential</text>
+<path d="M790 710 L1000 710" stroke="#8a8a8a" stroke-width="4.2"/>
+<path d="M790 710 L1000 710" stroke="#111111" stroke-width="2.2"/>
+<text class="p" x="780" y="714" text-anchor="end">MAIN -</text>
+<text class="p" x="1008" y="714" text-anchor="start">Black: GND</text>
+<text class="warn" x="1240" y="725" text-anchor="end">Red: tape off</text>
+<text class="port" x="780" y="630" text-anchor="end">MAIN (IO)</text>
+<rect class="box old" x="1335" y="570" width="150" height="100" rx="7"/>
+<text class="t" x="1345" y="590">2 BLDC</text>
+<text class="s" x="1345" y="607">track controllers</text>
+<text class="s" x="1345" y="622">Existing</text>
+<path d="M1250 595 L1335 595" stroke="#9ca3af" stroke-width="1.8" stroke-dasharray="5 3"/>
+<text class="w" x="1292" y="592" text-anchor="middle">Speed L</text>
+<path d="M1250 615 L1335 615" stroke="#9ca3af" stroke-width="1.8" stroke-dasharray="5 3"/>
+<text class="w" x="1292" y="612" text-anchor="middle">Speed R</text>
+<path d="M1250 635 L1335 635" stroke="#9ca3af" stroke-width="1.8" stroke-dasharray="5 3"/>
+<text class="w" x="1292" y="632" text-anchor="middle">Reverse L</text>
+<path d="M1250 655 L1335 655" stroke="#9ca3af" stroke-width="1.8" stroke-dasharray="5 3"/>
+<text class="w" x="1292" y="652" text-anchor="middle">Reverse R</text>
+<rect class="box old" x="1335" y="700" width="150" height="56" rx="7"/>
+<text class="t" x="1345" y="720">Track motors</text>
+<text class="s" x="1345" y="737">Left + right</text>
+<path d="M1410 670 L1410 700" stroke="#d92d20" stroke-width="5"/>
+<path d="M1450 150 L1450 430" stroke="#d92d20" stroke-width="5"/>
+<rect class="box old" x="1405" y="430" width="80" height="60" rx="7"/>
+<text class="t" x="1445" y="452" text-anchor="middle">40 A fuse</text>
+<text class="s" x="1445" y="468" text-anchor="middle">2 outputs</text>
+<path d="M1445 490 L1445 570" stroke="#d92d20" stroke-width="5"/>
+<text class="t" x="30" y="800" text-anchor="start">Existing wires, real colors</text>
+<path d="M30 818 L58 818" stroke="#d92d20" stroke-width="3"/>
+<text class="p" x="66" y="822" text-anchor="start">Battery and main power</text>
+<path d="M262 818 L290 818" stroke="#2563eb" stroke-width="3"/>
+<text class="p" x="298" y="822" text-anchor="start">Key to main relay coil</text>
+<path d="M494 818 L522 818" stroke="#eab308" stroke-width="3"/>
+<text class="p" x="530" y="822" text-anchor="start">Fore-aft, switch ground</text>
+<path d="M30 842 L58 842" stroke="#8a8a8a" stroke-width="5"/>
+<path d="M30 842 L58 842" stroke="#f5f5f5" stroke-width="3"/>
+<text class="p" x="66" y="846" text-anchor="start">Differential</text>
+<path d="M262 842 L290 842" stroke="#8a8a8a" stroke-width="5"/>
+<path d="M262 842 L290 842" stroke="#111111" stroke-width="3"/>
+<text class="p" x="298" y="846" text-anchor="start">Switch kill wire, and GND</text>
+<path d="M494 842 L522 842" stroke="#9ca3af" stroke-width="3"/>
+<text class="p" x="530" y="846" text-anchor="start">Harness kill wire</text>
+<path d="M30 866 L58 866" stroke="#9ca3af" stroke-width="3" stroke-dasharray="5 3"/>
+<text class="p" x="66" y="870" text-anchor="start">Box to controllers, not traced</text>
+<text class="t" x="760" y="800" text-anchor="start">New wires, suggested colors</text>
+<path d="M760 818 L788 818" stroke="#d92d20" stroke-width="3"/>
+<text class="p" x="796" y="822" text-anchor="start">5 V and fused 24 V</text>
+<path d="M992 818 L1020 818" stroke="#8a8a8a" stroke-width="5"/>
+<path d="M992 818 L1020 818" stroke="#111111" stroke-width="3"/>
+<text class="p" x="1028" y="822" text-anchor="start">Ground</text>
+<path d="M1224 818 L1252 818" stroke="#16a34a" stroke-width="3"/>
+<text class="p" x="1260" y="822" text-anchor="start">Pixhawk TX</text>
+<path d="M760 842 L788 842" stroke="#8a8a8a" stroke-width="5"/>
+<path d="M760 842 L788 842" stroke="#f5f5f5" stroke-width="3"/>
+<text class="p" x="796" y="846" text-anchor="start">Pixhawk RX</text>
+<path d="M992 842 L1020 842" stroke="#ea7317" stroke-width="3"/>
+<text class="p" x="1028" y="846" text-anchor="start">SBUS</text>
+<path d="M1224 842 L1252 842" stroke="#2563eb" stroke-width="3"/>
+<text class="p" x="1260" y="846" text-anchor="start">R1 control</text>
+<path d="M760 866 L788 866" stroke="#7c3aed" stroke-width="3"/>
+<text class="p" x="796" y="870" text-anchor="start">R2 control</text>
+<path d="M992 866 L1020 866" stroke="#6b7280" stroke-width="3"/>
+<text class="p" x="1028" y="870" text-anchor="start">Antenna coax</text>
+<text class="t" x="30" y="906" text-anchor="start">Boxes</text>
+<rect class="box new" x="100" y="894" width="28" height="16" rx="3"/>
+<text class="p" x="136" y="907" text-anchor="start">New part</text>
+<rect class="box old" x="300" y="894" width="28" height="16" rx="3"/>
+<text class="p" x="336" y="907" text-anchor="start">Existing mower part</text>
+<rect class="box opt" x="500" y="894" width="28" height="16" rx="3"/>
+<text class="p" x="536" y="907" text-anchor="start">Optional</text>
+</svg>
+</main>
+<details>
+<summary>Wiring notes</summary>
+<ul>
+<li><strong>Hard stop is the key.</strong> Key off cuts the main relay and the Pixhawk, and grounds the kill wire, with no software. It only works if you can reach the mower.</li>
+<li><strong>Never</strong> put 24 V on the Pixhawk or its rails. It is 6 V max.</li>
+<li>Route the SBUS-A and ESP32 antennas out of the steel bay.</li>
+<li>Unplug the ESP32's USB while it is powered from TELEM1.</li>
+<li>Keep the kill wire tap short and away from signal wires. Do not probe it with the engine running.</li>
+<li>Bench-test the relay board before connecting R1 and R2 to the mower.</li>
+</ul>
+</details>
+<script>
+(function () {
+  var svg = document.getElementById('d'), pct = document.getElementById('pct');
+  var W = 1500, H = 930, MIN = 0.5, MAX = 10;
+  var v = { x: 0, y: 0, w: W, h: H }, pts = new Map(), pinch = null;
+  function apply() {
+    svg.setAttribute('viewBox', v.x + ' ' + v.y + ' ' + v.w + ' ' + v.h);
+    pct.textContent = Math.round(W / v.w * 100) + '%';
+  }
+  function toSvg(cx, cy) {
+    var m = svg.getScreenCTM().inverse();
+    return { x: m.a * cx + m.c * cy + m.e, y: m.b * cx + m.d * cy + m.f };
+  }
+  function zoomAt(f, p) {
+    var w = Math.min(W / MIN, Math.max(W / MAX, v.w * f));
+    f = w / v.w;
+    v.x = p.x - (p.x - v.x) * f; v.y = p.y - (p.y - v.y) * f;
+    v.w = w; v.h = v.h * f;
+    apply();
+  }
+  function center() { return { x: v.x + v.w / 2, y: v.y + v.h / 2 }; }
+  function fit() { v = { x: 0, y: 0, w: W, h: H }; apply(); }
+  svg.addEventListener('wheel', function (e) {
+    e.preventDefault();
+    var d = e.deltaMode === 1 ? e.deltaY * 16 : e.deltaY;
+    zoomAt(Math.exp(d * (e.ctrlKey ? 0.01 : 0.002)), toSvg(e.clientX, e.clientY));
+  }, { passive: false });
+  svg.addEventListener('pointerdown', function (e) {
+    svg.setPointerCapture(e.pointerId);
+    pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    svg.classList.add('drag');
+    pinch = null;
+  });
+  svg.addEventListener('pointermove', function (e) {
+    var last = pts.get(e.pointerId);
+    if (!last) return;
+    if (pts.size === 1) {
+      var m = svg.getScreenCTM();
+      v.x -= (e.clientX - last.x) / m.a; v.y -= (e.clientY - last.y) / m.d;
+      pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      apply();
+    } else if (pts.size === 2) {
+      pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      var a = Array.from(pts.values());
+      var dist = Math.hypot(a[0].x - a[1].x, a[0].y - a[1].y);
+      if (pinch && dist > 0) zoomAt(pinch / dist, toSvg((a[0].x + a[1].x) / 2, (a[0].y + a[1].y) / 2));
+      pinch = dist;
+    }
+  });
+  function up(e) {
+    pts.delete(e.pointerId); pinch = null;
+    if (!pts.size) svg.classList.remove('drag');
+  }
+  svg.addEventListener('pointerup', up);
+  svg.addEventListener('pointercancel', up);
+  svg.addEventListener('dblclick', function (e) { zoomAt(0.5, toSvg(e.clientX, e.clientY)); });
+  document.getElementById('in').onclick = function () { zoomAt(0.7, center()); };
+  document.getElementById('out').onclick = function () { zoomAt(1 / 0.7, center()); };
+  document.getElementById('fit').onclick = fit;
+  window.addEventListener('keydown', function (e) {
+    var s = v.w * 0.1;
+    if (e.key === '+' || e.key === '=') zoomAt(0.8, center());
+    else if (e.key === '-') zoomAt(1.25, center());
+    else if (e.key === '0') fit();
+    else if (e.key === 'ArrowLeft') { v.x -= s; apply(); }
+    else if (e.key === 'ArrowRight') { v.x += s; apply(); }
+    else if (e.key === 'ArrowUp') { v.y -= s; apply(); }
+    else if (e.key === 'ArrowDown') { v.y += s; apply(); }
+  });
+  apply();
+})();
+</script>
+</body>
+</html>

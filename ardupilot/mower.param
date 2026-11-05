@@ -1,0 +1,107 @@
+# mower.param: ArduPilot Rover parameters for the tracked mower.
+#
+# STATUS: DRAFT. NEVER LOADED ON REAL HARDWARE. Names were checked against the Rover
+# 4.6.3 and 4.7.2 source, and this file was loaded into 4.6.3 SITL (see README.md).
+# Params marked HW-ONLY do not exist in SITL, so only the source check covers them.
+#
+# Lines starting "# TODO" need a measured or user-chosen value. They are commented
+# out on purpose. Do not uncomment them with a guessed value.
+#
+# Load this file twice, with a reboot between, because some params only appear after
+# their enable param is set (see README.md).
+
+# --- Drive. MAIN5/6 carry the left/right values for Lua and connect to nothing
+SERVO1_FUNCTION,94
+SERVO3_FUNCTION,95
+SERVO1_TRIM,1500
+SERVO3_TRIM,1500
+SERVO5_FUNCTION,73
+SERVO6_FUNCTION,74
+# The script refuses to run unless these two are also 1500
+SERVO5_TRIM,1500
+SERVO6_TRIM,1500
+MOT_PWM_TYPE,0
+# HW-ONLY. No safety button fitted. Outputs are live from boot
+BRD_SAFETY_DEFLT,0
+# TODO tuning: SERVO5_MIN/MAX and SERVO6_MIN/MAX default to 1100/1900, which limits
+# TODO tuning: L/R to +/-400 us. Widen toward 1000/2000 only after scaling is measured.
+# TODO SERVO5_MIN,<measure>
+# TODO SERVO5_MAX,<measure>
+# TODO SERVO6_MIN,<measure>
+# TODO SERVO6_MAX,<measure>
+
+# --- GPS. WTRTK-982DT on GPS2 port (SERIAL4). SERIAL3 must not also be protocol 5,
+# --- or ArduPilot looks for this GPS on the GPS1 port first
+SERIAL3_PROTOCOL,-1
+SERIAL4_PROTOCOL,5
+GPS1_TYPE,25
+# GPS1_MB_OFS_* only appear once this is non-zero, so they need a second load
+GPS1_MB_TYPE,1
+# TODO measure, metres, slave to master antenna, see wiki "GPS for Yaw":
+# TODO GPS1_MB_OFS_X,<measure>
+# TODO GPS1_MB_OFS_Y,<measure>
+# TODO GPS1_MB_OFS_Z,<measure>
+AHRS_EKF_TYPE,3
+EK3_SRC1_YAW,2
+
+# --- Telemetry. ESP32 on TELEM1 (SERIAL1)
+SERIAL1_PROTOCOL,2
+SERIAL1_BAUD,115
+# HW-ONLY
+BRD_SER1_RTSCTS,0
+
+# --- Relays. AUX1-2 as GPIO. R2 stays off until R2_WIRING_CONFIRMED is set in the
+# --- script. With R2 wired, that means the engine stays killed
+SERVO9_FUNCTION,-1
+SERVO10_FUNCTION,-1
+RELAY1_FUNCTION,1
+RELAY1_PIN,50
+RELAY1_DEFAULT,0
+# Active-low board: ON pulls the pin low. Confirm on the bench
+RELAY1_INVERTED,1
+RELAY2_FUNCTION,1
+RELAY2_PIN,51
+RELAY2_DEFAULT,0
+RELAY2_INVERTED,1
+
+# --- Failsafes
+FS_THR_ENABLE,1
+# 5 = Terminate. In Rover source this is a disarm. Lua then drops the relays, but
+# only while the script is alive
+FS_ACTION,5
+FS_GCS_ENABLE,1
+# 2 = Hold and disarm. Only active in autopilot modes, so not in Manual or Hold
+FS_CRASH_CHECK,2
+# ADDED, not in the doc: bit 0 makes failsafes act in Hold. Without it, losing radio
+# while in Hold (including after a rangefinder stop) leaves the mower armed
+FS_OPTIONS,1
+# ADDED, not in the doc: stops full-right steering from arming the mower, which would
+# otherwise work even with the kill switch low
+ARMING_RUDDER,0
+# TODO tuning: FS_TIMEOUT (default 1.5 s) applies after the 0.5 s RC-loss detection
+# TODO tuning: FS_GCS_TIMEOUT (default 5 s) if cellular or WiFi drops trip it
+# TODO tuning: FS_THR_VALUE (default 910) after the SBUS-A radio-loss test
+# TODO FS_TIMEOUT,<tune>
+# TODO FS_GCS_TIMEOUT,<tune>
+# TODO FS_THR_VALUE,<tune>
+
+# --- Radio. Channel numbers come from the CT-6A test, not chosen yet
+# TODO RCMAP_ROLL,<channel of steering control>
+# TODO RCMAP_THROTTLE,<channel of throttle control>
+# TODO MODE_CH,<channel of mode switch>
+# TODO RC<n>_OPTION,153   kill switch, low disarms. Doc shows RC6, unconfirmed
+# TODO MODE1..MODE6,<Manual=0, Hold=4, Auto=10, by switch position>
+
+# --- Optional lidar, TFmini Plus on TELEM2 (SERIAL2). Off until fitted, because a
+# --- configured but absent sensor fails pre-arm. The name of the range params depends
+# --- on firmware. Benewake-Serial is 20
+# TODO SERIAL2_PROTOCOL,9
+# TODO SERIAL2_BAUD,115
+# TODO BRD_SER2_RTSCTS,0
+# TODO RNGFND1_TYPE,20
+# TODO RNGFND1_ORIENT,0
+# TODO Rover 4.7 and later, metres:  RNGFND1_MIN,0.1  and  RNGFND1_MAX,6
+# TODO Rover 4.6, centimetres:       RNGFND1_MIN_CM,10  and  RNGFND1_MAX_CM,600
+
+# --- Scripting. Needs a reboot
+SCR_ENABLE,1
