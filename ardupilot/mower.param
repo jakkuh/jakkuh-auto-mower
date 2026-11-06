@@ -23,26 +23,30 @@ SERVO6_TRIM,1500
 MOT_PWM_TYPE,0
 # HW-ONLY. No safety button fitted. Outputs are live from boot
 BRD_SAFETY_DEFLT,0
-# TODO tuning: SERVO5_MIN/MAX and SERVO6_MIN/MAX default to 1100/1900, which limits
-# TODO tuning: L/R to +/-400 us. Widen toward 1000/2000 only after scaling is measured.
-# TODO SERVO5_MIN,<measure>
-# TODO SERVO5_MAX,<measure>
-# TODO SERVO6_MIN,<measure>
-# TODO SERVO6_MAX,<measure>
 
 # --- GPS. WTRTK-982DT on GPS2 port (SERIAL4). SERIAL3 must not also be protocol 5,
 # --- or ArduPilot looks for this GPS on the GPS1 port first
 SERIAL3_PROTOCOL,-1
 SERIAL4_PROTOCOL,5
 GPS1_TYPE,25
+# No second GPS. Auto (1) made pre-arm wait on "GPS 2 still configuring"
+GPS2_TYPE,0
 # GPS1_MB_OFS_* only appear once this is non-zero, so they need a second load
 GPS1_MB_TYPE,1
-# TODO measure, metres, slave to master antenna, see wiki "GPS for Yaw":
-# TODO GPS1_MB_OFS_X,<measure>
-# TODO GPS1_MB_OFS_Y,<measure>
-# TODO GPS1_MB_OFS_Z,<measure>
+# Slave (S) relative to master (M), metres, body frame. -0.75 tested against an iPhone
+# compass (+0.75 read 180 off), so S is effectively left of M. About 0.75 m
+# apart near the middle of the mower (user measurement). Remeasure precisely
+GPS1_MB_OFS_X,0
+GPS1_MB_OFS_Y,-0.75
+GPS1_MB_OFS_Z,0
 AHRS_EKF_TYPE,3
-EK3_SRC1_YAW,2
+# Pixhawk mounted vertically on the mower. 34 (Roll 180, Pitch 270) reads level with
+# heading matching the mower. 25 is also level but heading is 180 off; 24 and 29 read
+# upside down. Redo if the board is remounted, then level-calibrate
+AHRS_ORIENTATION,34
+# 3 = GPS heading, compass fallback until the 982 heading locks. Set 2 (GPS only) and
+# COMPASS_USE 0 once GPS heading is reliable
+EK3_SRC1_YAW,3
 
 # --- Telemetry. ESP32 on TELEM1 (SERIAL1)
 SERIAL1_PROTOCOL,2
@@ -54,6 +58,7 @@ BRD_SER1_RTSCTS,0
 # --- script. With R2 wired, that means the engine stays killed
 SERVO9_FUNCTION,-1
 SERVO10_FUNCTION,-1
+SERVO11_FUNCTION,-1
 RELAY1_FUNCTION,1
 RELAY1_PIN,50
 RELAY1_DEFAULT,0
@@ -63,15 +68,25 @@ RELAY2_FUNCTION,1
 RELAY2_PIN,51
 RELAY2_DEFAULT,0
 RELAY2_INVERTED,1
+# R3 starter, AUX3. Script sends it nothing until STARTER_WIRING_CONFIRMED
+RELAY3_FUNCTION,1
+RELAY3_PIN,52
+RELAY3_DEFAULT,0
+RELAY3_INVERTED,1
 
 # --- Failsafes
-FS_THR_ENABLE,1
+# 2 = transmitter loss continues the mission in Auto, other modes still failsafe (the
+# CT-6A loss value on CH2 is full forward, so Manual must not ignore it)
+FS_THR_ENABLE,2
 # 5 = Terminate. In Rover source this is a disarm. Lua then drops the relays, but
 # only while the script is alive
 FS_ACTION,5
 FS_GCS_ENABLE,1
 # 2 = Hold and disarm. Only active in autopilot modes, so not in Manual or Hold
-FS_CRASH_CHECK,2
+# TEMP 0 while tuning (user choice). 1 = Hold on a stall kept tripping; 2 (Hold + disarm) gave
+# false trips right after arming (script holds neutral 3 s). 0 lets a stalled mower push
+# at full power indefinitely, so watch it
+FS_CRASH_CHECK,0
 # ADDED, not in the doc: bit 0 makes failsafes act in Hold. Without it, losing radio
 # while in Hold (including after a rangefinder stop) leaves the mower armed
 FS_OPTIONS,1
@@ -80,17 +95,46 @@ FS_OPTIONS,1
 ARMING_RUDDER,0
 # TODO tuning: FS_TIMEOUT (default 1.5 s) applies after the 0.5 s RC-loss detection
 # TODO tuning: FS_GCS_TIMEOUT (default 5 s) if cellular or WiFi drops trip it
-# TODO tuning: FS_THR_VALUE (default 910) after the SBUS-A radio-loss test
 # TODO FS_TIMEOUT,<tune>
 # TODO FS_GCS_TIMEOUT,<tune>
-# TODO FS_THR_VALUE,<tune>
+# SBUS-A has no failsafe flag. CT-6A CH2 fail-safe set at full forward (995) at 100%
+# stroke, then stroke cut to 85%, so 995 only appears on link loss. Bench: trips 1.5 s
+# after transmitter off, clears on reconnect
+FS_THR_VALUE,1030
 
-# --- Radio. Channel numbers come from the CT-6A test, not chosen yet
-# TODO RCMAP_ROLL,<channel of steering control>
-# TODO RCMAP_THROTTLE,<channel of throttle control>
-# TODO MODE_CH,<channel of mode switch>
-# TODO RC<n>_OPTION,153   kill switch, low disarms. Doc shows RC6, unconfirmed
-# TODO MODE1..MODE6,<Manual=0, Hold=4, Auto=10, by switch position>
+# --- Radio. CT-6A with SBUS-A, measured on the bench. Transmitter must be in MIX 2
+# --- only (CH5/CH6 mix): CH5/CH6 then read 1500 at rest, hold CH5 1000, hold CH6 2000.
+# --- MIX 1 (CH1/CH2 stick mix) must be OFF
+RCMAP_ROLL,1
+RCMAP_THROTTLE,2
+RC1_MIN,995
+RC1_MAX,1995
+RC1_TRIM,1495
+RC1_DZ,30
+# CT-6A throttle stroke at 85%: live 1070 (full forward) to 1920. Forward reads low
+RC2_MIN,1070
+RC2_MAX,1920
+RC2_TRIM,1492
+RC2_REVERSED,1
+RC2_DZ,30
+# CH6 hold (reads 2000): disarm. Arm from the ground station
+RC6_OPTION,81
+# CH5 hold (reads 1000) is the starter, read by the script, no RC option
+RC3_OPTION,0
+RC4_OPTION,0
+RC5_OPTION,0
+RC5_REVERSED,0
+RC7_OPTION,0
+RC8_OPTION,0
+RC_OPTIONS,32
+# SWA toggle on CH3 is the mode switch: 995 Manual, 1995 Auto
+MODE_CH,3
+MODE1,0
+MODE2,0
+MODE3,0
+MODE4,10
+MODE5,10
+MODE6,10
 
 # --- Optional lidar, TFmini Plus on TELEM2 (SERIAL2). Off until fitted, because a
 # --- configured but absent sensor fails pre-arm. The name of the range params depends
@@ -105,3 +149,72 @@ ARMING_RUDDER,0
 
 # --- Scripting. Needs a reboot
 SCR_ENABLE,1
+
+# --- Navigation tuning, first field test 2026-11-05. Defaults (FF 0.2, pivot 60 deg/s,
+# --- 2 m/s) were too weak to pivot the tracks on grass. Starting values, tune further
+ATC_STR_RAT_FF,1.0
+ATC_STR_RAT_P,0.3
+ATC_STR_RAT_I,0.5
+# Caps steering windup: a stalled pivot ramped steering to full on an 11 deg error
+ATC_STR_RAT_IMAX,0.5
+# Stop and pivot in place whenever heading error is over 20 deg (arc corrections were slow
+# and could get stuck).
+# 0 disables pivots (arcs only)
+WP_PIVOT_ANGLE,20
+WP_PIVOT_DELAY,0
+# Plan gentle stops so it arrives at corners already stopped (tracks coast)
+# Must not exceed ATC_DECEL_MAX: the planner brakes at WP_ACCEL, so higher overshoots
+WP_ACCEL,0.6
+ATC_DECEL_MAX,0.6
+# Fully stop before pivoting: at 0.2 the inner track got reverse while still rolling
+# forward and the controllers twitched and stalled (south-end right turns)
+ATC_STOP_SPEED,0.05
+# Must be well under the lane spacing: at 1.0 with 0.91 m lanes it counted both corners
+# of each short leg as reached and cut diagonally between lanes
+# 0.6 cut each lane end short by ~0.6 m. 0.3 drives into corners; fine with the spiral
+# (no short legs). Survey short legs looped at 0.4, so raise this if using surveys
+WP_RADIUS,0.3
+# 15 stalled on rough ground; keep 30 and ease off early with ATC_STR_ACC_MAX instead
+WP_PIVOT_RATE,30
+ATC_STR_ACC_MAX,40
+# Measured in Auto: about 0.5 m/s at ~70% throttle on grass. CRUISE_THROTTLE 100 with
+# CRUISE_SPEED above top speed makes lanes run at full throttle
+CRUISE_SPEED,0.65
+CRUISE_THROTTLE,100
+# Just under top speed (~0.85 m/s): at full throttle there was no headroom to steer, and
+# small corrections sat in the box deadband, so lanes drifted 30 cm
+WP_SPEED,0.65
+# Faster throttle changes (default 100%/s took 1 s to stop, so turns became arcs), and
+# steering priority over throttle so hard turns counter-rotate the tracks
+MOT_SLEWRATE,300
+MOT_STR_THR_MIX,1.0
+# Full track output range (default 1100-1900 capped power at about 80%)
+SERVO5_MIN,1000
+SERVO5_MAX,2000
+SERVO6_MIN,1000
+SERVO6_MAX,2000
+# Skip gyro calibration at boot: with the engine running the board is never still and
+# boot stalls at "Initialising ArduPilot". Uses the saved INS_GYROFFS instead
+INS_GYR_CAL,0
+
+# --- Sensor positions, metres from the turning centre (middle of the tracks), body
+# --- frame X forward, Y right, Z down. User measurements: Pixhawk 47 cm behind centre,
+# --- M antenna 25 cm ahead of, 56.5 cm left of and 4 cm above the Pixhawk. Y assumes
+# --- the antennas sit evenly either side of the centre line. Without these, a pivot
+# --- swung the antenna in an arc that the EKF read as the mower driving in a circle
+INS_POS1_X,-0.47
+INS_POS1_Y,0.19
+INS_POS1_Z,0
+INS_POS2_X,-0.47
+INS_POS2_Y,0.19
+INS_POS2_Z,0
+GPS1_POS_X,-0.22
+GPS1_POS_Y,-0.375
+GPS1_POS_Z,-0.04
+# Firmer speed control (defaults 0.2/0.2 were sluggish on short legs)
+ATC_SPEED_P,0.4
+ATC_SPEED_I,0.3
+# Box/controller deadband: tracks don't move below about 25-30% throttle, so starts sat
+# for seconds while the speed controller ramped through it
+# 20 stalled near waypoints (inside the deadband); 25 is the floor
+MOT_THR_MIN,25

@@ -49,6 +49,7 @@ text { fill: var(--fg); font-family: -apple-system, BlinkMacSystemFont, "Segoe U
 .p { font-size: 12px; }
 .port { font-size: 12px; font-weight: 650; fill: var(--mut); }
 .w { font-size: 11px; fill: var(--mut); }
+.job { font-size: 15px; font-weight: 700; }
 .tiny { font-size: 10.5px; font-weight: 650; }
 .warn { font-size: 11.5px; font-weight: 650; fill: var(--stop); }
 .stoptxt { font-size: 12px; font-weight: 700; fill: var(--stop); }
@@ -60,13 +61,13 @@ li { margin: 3px 0; }
 <body>
 <header>
 <h1>Mower wiring diagram</h1>
-<p class="sub">Draft, not bench-tested. Existing wires are drawn in their real colors. New wires use suggested colors. All grounds tie together, including ones not drawn.</p>
+<p class="sub">Partly bench-tested: relays R1/R2, WiFi link, GPS2, radio and failsafe. Existing wires in real colors, new wires in suggested colors. All grounds tie together.</p>
 <div class="tools">
 <button id="out" aria-label="Zoom out">−</button><span id="pct">100%</span><button id="in" aria-label="Zoom in">+</button><button id="fit">Fit</button>
 </div>
 </header>
 <main>
-<svg id="d" viewBox="0 0 1500 930" role="img" aria-label="Wiring diagram of the mower autopilot, with the Pixhawk at the center, radio, GPS and WiFi on the left, and relay board, key switch, main relay and drive electronics on the right.">
+<svg id="d" viewBox="0 0 1500 1170" role="img" aria-label="Wiring diagram of the mower autopilot, with the Pixhawk at the center, radio, GPS and WiFi on the left, and relay board, key switch, main relay and drive electronics on the right. Below it, a map of each transmitter control and its job.">
 <rect class="box new" x="580" y="240" width="210" height="530" rx="7"/>
 <text class="t" x="590" y="260">Pixhawk 6C Mini</text>
 <rect class="box new" x="580" y="240" width="210" height="530" rx="7" style="stroke-width:2.5"/>
@@ -164,7 +165,7 @@ li { margin: 3px 0; }
 <rect class="box new" x="1000" y="280" width="250" height="240" rx="7"/>
 <text class="t" x="1010" y="300">8-relay board</text>
 <text class="s" x="1010" y="317">Keep VCC/JD-VCC jumper on</text>
-<text class="s" x="1010" y="332">R3-R8 spare</text>
+<text class="s" x="1010" y="332">R4-R8 spare</text>
 <text class="port" x="780" y="325" text-anchor="end">TELEM2, power only</text>
 <path d="M790 345 L1000 345" stroke="#d92d20" stroke-width="2.2"/>
 <text class="p" x="780" y="349" text-anchor="end">1  5V</text>
@@ -183,6 +184,10 @@ li { margin: 3px 0; }
 <text class="p" x="780" y="441" text-anchor="end">AUX2 S (pin 51)</text>
 <text class="p" x="1008" y="441" text-anchor="start">IN2</text>
 <text class="w" x="895.0" y="433" text-anchor="middle">R2 engine, your purple wire</text>
+<path d="M790 462 L1000 462" stroke="#0d9488" stroke-width="2.2"/>
+<text class="p" x="780" y="466" text-anchor="end">AUX3 S (pin 52)</text>
+<text class="p" x="1008" y="466" text-anchor="start">IN3</text>
+<text class="w" x="895.0" y="458" text-anchor="middle">R3 starter, suggested teal</text>
 <rect class="box old" x="30" y="30" width="180" height="80" rx="7"/>
 <text class="t" x="40" y="50">Battery, 24 V</text>
 <text class="s" x="40" y="67">2 x 12 V in series</text>
@@ -198,6 +203,7 @@ li { margin: 3px 0; }
 <text class="s" x="900" y="82">Black = kill wire, to harness gray</text>
 <text class="s" x="900" y="97">Yellow = ground</text>
 <text class="s" x="900" y="112">Black-yellow closes when key off</text>
+<text class="s" x="900" y="127">START contact: R3 across it</text>
 <path d="M210 70 L890 70" stroke="#d92d20" stroke-width="3"/>
 <text class="w" x="550" y="63" text-anchor="middle">Battery 24 V to key (existing)</text>
 <path d="M890 135 L770 135" stroke="#d92d20" stroke-width="3"/>
@@ -226,6 +232,12 @@ li { margin: 3px 0; }
 <text class="w" x="1023" y="226" text-anchor="end">switch black</text>
 <text class="w" x="1082" y="212" text-anchor="start">R2 NC to</text>
 <text class="w" x="1082" y="226" text-anchor="start">switch yellow</text>
+<path d="M1205 280 L1205 252 L1140 252 L1140 128 L1120 128" stroke="#0d9488" stroke-width="3" stroke-dasharray="6 4"/>
+<path d="M1238 280 L1238 264 L1155 264 L1155 144 L1120 144" stroke="#0d9488" stroke-width="3" stroke-dasharray="6 4"/>
+<text class="w" x="1205" y="297" text-anchor="middle">R3 COM</text>
+<text class="w" x="1238" y="297" text-anchor="middle">NO</text>
+<text class="w" x="1162" y="246" text-anchor="start">R3 to key START, wires TBD</text>
+<text class="warn" x="1015" y="512" text-anchor="start">R3: check it stays open during boot</text>
 <rect class="box old" x="1170" y="165" width="110" height="62" rx="7"/>
 <text class="t" x="1180" y="185">Engine</text>
 <text class="s" x="1180" y="202">Grounded gray</text>
@@ -308,6 +320,8 @@ li { margin: 3px 0; }
 <text class="p" x="796" y="870" text-anchor="start">R2 control</text>
 <path d="M992 866 L1020 866" stroke="#6b7280" stroke-width="3"/>
 <text class="p" x="1028" y="870" text-anchor="start">Antenna coax</text>
+<path d="M1224 866 L1252 866" stroke="#0d9488" stroke-width="3"/>
+<text class="p" x="1260" y="870" text-anchor="start">R3 control</text>
 <text class="t" x="30" y="906" text-anchor="start">Boxes</text>
 <rect class="box new" x="100" y="894" width="28" height="16" rx="3"/>
 <text class="p" x="136" y="907" text-anchor="start">New part</text>
@@ -315,6 +329,51 @@ li { margin: 3px 0; }
 <text class="p" x="336" y="907" text-anchor="start">Existing mower part</text>
 <rect class="box opt" x="500" y="894" width="28" height="16" rx="3"/>
 <text class="p" x="536" y="907" text-anchor="start">Optional</text>
+<text class="t" x="30" y="958" text-anchor="start">Controller map: CT-6A through SBUS-A</text>
+<text class="s" x="330" y="958" text-anchor="start">Arm from QGroundControl. The radio can disarm but not arm.</text>
+<rect class="box new" x="30" y="972" width="230" height="132" rx="7"/>
+<text class="t" x="42" y="994" text-anchor="start">Steering</text>
+<text class="s" x="248" y="994" text-anchor="end">CH1</text>
+<text class="job" x="42" y="1020" text-anchor="start">Steering</text>
+<text class="p" x="42" y="1042" text-anchor="start">Left 995, right 1995</text>
+<text class="p" x="42" y="1059" text-anchor="start">Link lost: centres</text>
+<rect class="box new" x="272" y="972" width="230" height="132" rx="7"/>
+<text class="t" x="284" y="994" text-anchor="start">Throttle</text>
+<text class="s" x="490" y="994" text-anchor="end">CH2</text>
+<text class="job" x="284" y="1020" text-anchor="start">Forward / back</text>
+<text class="p" x="284" y="1042" text-anchor="start">Fwd 1070, back 1920 (85%)</text>
+<text class="p" x="284" y="1059" text-anchor="start">Link lost: 995, Radio</text>
+<text class="p" x="284" y="1076" text-anchor="start">Failsafe, disarms in 1.5 s</text>
+<rect class="box new" x="514" y="972" width="230" height="132" rx="7"/>
+<text class="t" x="526" y="994" text-anchor="start">SWA button</text>
+<text class="s" x="732" y="994" text-anchor="end">CH3, toggle</text>
+<text class="job" x="526" y="1020" text-anchor="start">Mode</text>
+<text class="p" x="526" y="1042" text-anchor="start">Press: Manual / Auto</text>
+<text class="p" x="526" y="1059" text-anchor="start">995 Manual, 1995 Auto</text>
+<text class="p" x="526" y="1076" text-anchor="start">Auto needs a mission</text>
+<rect class="box opt" x="756" y="972" width="230" height="132" rx="7"/>
+<text class="t" x="768" y="994" text-anchor="start">Side switch</text>
+<text class="s" x="974" y="994" text-anchor="end">CH4, 3-position</text>
+<text class="job" x="768" y="1020" text-anchor="start">Spare</text>
+<text class="p" x="768" y="1042" text-anchor="start">995 / 1495 / 1995</text>
+<text class="p" x="768" y="1059" text-anchor="start">Not used</text>
+<rect class="box new" x="998" y="972" width="230" height="132" rx="7"/>
+<text class="t" x="1010" y="994" text-anchor="start">CH5 button</text>
+<text class="s" x="1216" y="994" text-anchor="end">Hold, reads 1000</text>
+<text class="job" x="1010" y="1020" text-anchor="start">Starter</text>
+<text class="p" x="1010" y="1042" text-anchor="start">Cranks while held</text>
+<text class="p" x="1010" y="1059" text-anchor="start">2.5 s max, disarmed only</text>
+<text class="p" x="1010" y="1076" text-anchor="start">R3 not wired yet</text>
+<rect class="box stop" x="1240" y="972" width="230" height="132" rx="7"/>
+<text class="t" x="1252" y="994" text-anchor="start">CH6 button</text>
+<text class="s" x="1458" y="994" text-anchor="end">Hold, reads 2000</text>
+<text class="stoptxt" x="1252" y="1020" text-anchor="start">KILL (disarm)</text>
+<text class="p" x="1252" y="1042" text-anchor="start">One press is enough</text>
+<text class="p" x="1252" y="1059" text-anchor="start">Tracks cut at once</text>
+<text class="p" x="1252" y="1076" text-anchor="start">Engine too, once R2 is wired</text>
+<text class="t" x="30" y="1130" text-anchor="start">Keep on the transmitter:</text>
+<text class="p" x="220" y="1130" text-anchor="start">MIX 2 only (screen shows 2, MIX 1 off)  ·  CH2 throttle stroke 85%  ·  Fail-safe saved at full forward</text>
+<text class="p" x="220" y="1150" text-anchor="start">No lock exists, so re-test transmitter-off after any change  ·  Turns itself off after 15 min idle, beeps 1 min before</text>
 </svg>
 </main>
 <details>
@@ -326,12 +385,14 @@ li { margin: 3px 0; }
 <li>Unplug the ESP32's USB while it is powered from TELEM1.</li>
 <li>Keep the kill wire tap short and away from signal wires. Do not probe it with the engine running.</li>
 <li>Bench-test the relay board before connecting R1 and R2 to the mower.</li>
+<li><strong>R3 starter:</strong> all relays energize for a few seconds at Pixhawk boot. Meter R3 through several power-ups before wiring it to START, or the starter could crank at every key-on.</li>
+<li>Find the key switch START contact wires with a meter, key off, turning to START.</li>
 </ul>
 </details>
 <script>
 (function () {
   var svg = document.getElementById('d'), pct = document.getElementById('pct');
-  var W = 1500, H = 930, MIN = 0.5, MAX = 10;
+  var W = 1500, H = 1170, MIN = 0.5, MAX = 10;
   var v = { x: 0, y: 0, w: W, h: H }, pts = new Map(), pinch = null;
   function apply() {
     svg.setAttribute('viewBox', v.x + ' ' + v.y + ' ' + v.w + ' ' + v.h);

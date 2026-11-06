@@ -5,7 +5,7 @@
 | File | What it is |
 |---|---|
 | `mower.param` | Parameters, with unknowns left as commented `# TODO` lines |
-| `scripts/mower_safety.lua` | Drive conversion, track relay R1, tilt and rangefinder stops, engine relay R2 (no commands until a flag is set) |
+| `scripts/mower_safety.lua` | Drive conversion, track relay R1, tilt and rangefinder stops, engine relay R2 and starter relay R3 (no commands until their flags are set) |
 | `test/test_mower_safety.lua` | Logic tests against a mock: `lua ardupilot/test/test_mower_safety.lua` |
 | `test/sitl_check.py` | Runs the real script on Rover SITL: `python3 ardupilot/test/sitl_check.py <path>/build/sitl/bin/ardurover` |
 
@@ -42,7 +42,7 @@ Tracks off the ground, engine off, key-off stop tested first. Stop at the first 
 4. **Relay board on, coil supply on, main relay coil not wired yet.** Same as step 3, listening for R1. Listen for clicks at power-up. Check R2 never clicks while `R2_WIRING_CONFIRMED` is false.
 5. **Connect the box, meter on its outputs.** Confirm neutral reads zero. Measure which direction is positive and how the box scales, then set `FORE_AFT_*` and `DIFF_*`.
 6. **Script failure test, tracks turning slowly.** Send `MAV_CMD_SCRIPTING` (42701) with param1 = 2 (`SCRIPTING_CMD_STOP`). The tracks must stop within about 0.3 s. If they don't, stop testing and rethink the design. Afterward R1 stays closed and the vehicle stays armed, as described above. Reboot to recover.
-7. **Stops, one at a time, tracks turning.** Measure the real controller boot time and set `BOOT_DELAY_MS`. Then test the radio kill switch, transmitter off (SBUS-A must signal the loss), GCS link loss, the key, and tilt by lifting one side or lowering `TILT_LIMIT_DEG` for the test.
+7. **Stops, one at a time, tracks turning.** Measure the real controller boot time and set `BOOT_DELAY_MS`. Then test the radio kill switch, transmitter off (SBUS-A must signal the loss), GCS link loss, the key, and tilt by lifting one side or lowering `TILT.LIMIT_DEG` for the test.
 8. **Only then:** manual driving on the ground, Auto with the blade off, and the attended blade run from the bring-up order in `docs/wiring-and-code-map.md`.
 
 Before setting `R2_WIRING_CONFIRMED`, confirm the R2 wiring and relay rating against the doc. Test first with the kill tap disconnected and a meter on the contacts: R2 energizes after boot, stays on while armed, and latches off on disarm, tilt, and script error, until reboot. Then repeat with the tap connected, clutch disengaged, and check each trigger really stops the engine. Do step 6 with the engine running and clutch disengaged, to see the engine keep running after the script dies.
@@ -52,7 +52,7 @@ Before setting `R2_WIRING_CONFIRMED`, confirm the R2 wiring and relay rating aga
 | Check | How | Result |
 |---|---|---|
 | Lua syntax | `luac -p` (5.4.8) | Passes. ArduPilot embeds 5.3, which the script's syntax also suits, and SITL runs it there |
-| Script logic | 38 mock tests. 18 deliberate breaks to the script were each caught | Passes |
+| Script logic | 46 mock tests (8 for the starter). 18 deliberate breaks to the script were each caught | Passes |
 | Real bindings, conversion, relay library, fallback, tilt, rangefinder, Lua errors, radio-loss failsafe, R2 policy, stop from Auto | `sitl_check.py` on 4.6.3 and 4.7.2 | 56 checks per run, 3 runs per version. 5 of 6 runs were clean. See below |
 | Param names and values | Read back from SITL, except HW-only ones. Those, and all binding names, checked in source for 4.6.3, 4.7.2, and master | Passes |
 
@@ -70,11 +70,11 @@ Measured or undecided values. All are placeholders until then.
 
 - [ ] Script: `FORE_AFT_GAIN`, `DIFF_GAIN`, `FORE_AFT_SIGN`, `DIFF_SIGN`, and whether the box's mix matches the formula
 - [ ] Script: `BOOT_DELAY_MS`, `DISARM_OPEN_DELAY_MS` (controller boot time and disarm behavior)
-- [ ] Script: `TILT_LIMIT_DEG`, `TILT_DEBOUNCE_MS` (placeholder values, tune on the real slopes)
-- [ ] Script: `RF_STOP_DISTANCE_M`, `RF_DEBOUNCE_MS` (expect false trips on grass and slopes)
+- [ ] Script: `TILT.LIMIT_DEG`, `TILT.DEBOUNCE_MS` (placeholder values, tune on the real slopes)
+- [ ] Script: `RF.STOP_DISTANCE_M`, `RF.DEBOUNCE_MS` (expect false trips on grass and slopes)
+- [ ] Script: `STARTER_WIRING_CONFIRMED`, once R3 is wired across the key's START contact and shown not to close during Pixhawk boot. Needs `R2_WIRING_CONFIRMED` too
 - [ ] Script: `R2_WIRING_CONFIRMED`, once the user confirms the R2 wiring. While false and with R2 wired, the engine stays killed
 - [ ] Params: `GPS1_MB_OFS_X/Y/Z` (measure antennas)
-- [ ] Params: `RCMAP_*`, `MODE_CH`, `MODEn`, `RCn_OPTION` 153 (CT-6A channel test)
 - [ ] Params: `SERVO5/6_MIN/MAX` (default 1100/1900 limits speed, which suits first tests)
 - [ ] Params: `FS_TIMEOUT`, `FS_GCS_TIMEOUT`, `FS_THR_VALUE` (after radio-loss and link tests)
 - [ ] Params: the lidar block, if fitted. Range param names differ between 4.6 (`_MIN_CM`/`_MAX_CM`) and 4.7+ (`_MIN`/`_MAX`)

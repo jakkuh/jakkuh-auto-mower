@@ -87,7 +87,8 @@ Everything must fail safe: a de-energized relay means stopped.
 |---|---|---|---|
 | R1 tracks | AUX1, pin 50 | NO, in series with the main relay coil. See "Track power cut" | Tracks off |
 | R2 engine | AUX2, pin 51 | COM to kill wire, NC to GND | Engine killed |
-| R3-R8 | Spare | | |
+| R3 starter | AUX3, pin 52 | NO, in parallel with the key's START contact (wires not yet identified) | Starter off |
+| R4-R8 | Spare | | |
 
 - Throttle and blade clutch are manual (user confirmed), so neither is on the board. Set throttle and engage the clutch by hand before arming.
 - The blade can only be stopped by killing the engine, so R2 is the blade stop too. It will coast down after a kill.
@@ -102,7 +103,8 @@ Everything must fail safe: a de-energized relay means stopped.
 - R2 policy: energized after boot, so the engine can start and idle before arming. Any disarm after arming, failsafe, kill switch, or tilt drops R2 and latches it off until the key is cycled. The engine cannot start until the Pixhawk has booted, and it dies if the Pixhawk or relay board loses power.
 - Keep the gray tap short and away from signal wiring. It carries ignition spikes. The relays are rated 10 A at 250 VAC (from the photo). Never connect its contacts to the low-voltage side.
 - Do not measure the gray wire with the engine running. Ohm readings there are not valid and the spikes can damage a meter.
-- Leave the starter off the board. Start the engine by hand at the mower.
+- Remote start (user choice): R3 cranks only while CH5 is held, disarmed, R2 energized, level, 2.5 s max, 5 s rest, release required between cranks. Cold starts still need the choke by hand. The Pixhawk cannot sense the engine running, so a press while running grinds the starter. Behind `STARTER_WIRING_CONFIRMED=false` in the script.
+- **Before wiring R3 to the starter:** meter R3's contacts through several Pixhawk power-ups. All relays energize for a few seconds at boot, so if R3 does, the starter would crank at every key-on, and R3 must not be wired that way.
 
 ### Relay board
 
@@ -254,17 +256,26 @@ SCR_ENABLE           1
 
 ## Radio channel plan
 
-Transmitter: HOTRC CT-6A (user believes, check the label), which the SBUS-A manual lists as compatible. Only 6 channels are available, even though the SBUS-A supports 16.
+CT-6A with SBUS-A, measured on the bench. Set the transmitter to **MIX 2 only** (hold the mix button until only "2" shows). MIX 1 mixes the sticks and must be off.
 
-| Channel | Use | Requirement |
-|---|---|---|
-| Steering control | Steering, `RCMAP_ROLL` | Centers |
-| Throttle control | Throttle, `RCMAP_THROTTLE` | Centers |
-| Spare 1 | Kill and arm, `RCx_OPTION` 153 | Must latch, and low must be the kill position |
-| Spare 2 | Mode: Manual, Hold, Auto, `MODE_CH` | Latching, ideally 3 positions |
-| Spare 3-4 | Unused | |
+| Control | Channel | Values | Use |
+|---|---|---|---|
+| Steering stick | CH1 | 995-1995, centre 1495 | `RCMAP_ROLL` 1 |
+| Throttle stick | CH2 | 1070 (full forward) to 1920, centre 1492, at 85% stroke | `RCMAP_THROTTLE` 2, `RC2_REVERSED` 1 |
+| SWB (side 3-position switch) | CH4 | 995 / 1495 / 1995 | Spare |
+| SWA | CH3 | Toggle, 995 / 1995 | Mode, `MODE_CH` 3: 995 Manual, 1995 Auto |
+| CH5 button | CH5 and CH6 | Hold: 1000 while held, else 1500 | Starter, read by the script |
+| CH6 button | CH5 and CH6 | Hold: 2000 while held, else 1500 | Kill: disarm, `RC6_OPTION` 81 |
 
-Assign channel numbers after the test. Binding the SBUS-A may mean rebinding the F-06A to return to stock.
+In MIX 2, CH5 and CH6 carry the same value. With mixing off, both buttons are toggles. Arming is from the ground station only. The radio can disarm (CH6) but not arm. The mode only changes when SWA moves, so flipping SWA to Auto starts the mission. To stop in Auto from the radio, flip SWA to Manual with sticks centred, or press CH6.
+
+**Radio loss.** The SBUS-A sets no SBUS failsafe flag, and on link loss it freezes every channel except CH1/CH2, which take the CT-6A fail-safe values. CH1 fails to centre. CH2's fail-safe is full forward (995), set at 100% throttle stroke, and the stroke was then cut to 85% so live CH2 never goes below 1070. `FS_THR_VALUE` 1030 then catches link loss in every mode (bench: "Radio Failsafe" 1.5 s after transmitter off, cleared on reconnect). The script checks the same value as a backup.
+
+Transmitter setup to keep: MIX 2 only, CH2 stroke 85%, fail-safe at full forward. The lock function could not be found on this transmitter, so a bumped setting is possible. If CH2 stroke goes back up to 100%, full forward reads 995 and trips the failsafe while driving. If the fail-safe is reset to centre, link loss is no longer detected. Redo the transmitter-off test after any transmitter change.
+
+The CT-6A powers off after 15 minutes without input and beeps 1 minute before. In Auto that trips the failsafe, so touch a control when it beeps.
+
+Bench-tested: SWA switches Manual (Auto refused until a mission is loaded), radio-loss failsafe. Still to test: CH6 disarm once pre-arm checks pass.
 
 ## Bring-up order
 
@@ -304,4 +315,7 @@ Network, whichever applies:
 
 Before saving any fence or mission, fix the base position (`rtk-base-station/docs/rtcm_to_rinex.md`). Each survey-in can shift every coordinate by a metre or two.
 
-Not tested: the base with this 982 as a rover, or ArduPilot passing injected RTCM to a `GPS1_TYPE` 25 receiver. Test order: base to 982 on the laptop first, then through the Pixhawk.
+Working (field test 2026-11-05): QGroundControl NTRIP to `10.0.0.30`, port 2101, user `rover`, mountpoint `BASE`, then MAVLink over WiFi to the Pixhawk and on to the 982 (`GPS1_TYPE` 25, `GPS_INJECT_TO` default). Result: RTK Fixed, 35 satellites, 1.2 cm horizontal accuracy, with dual-antenna heading at the same time.
+
+- The relay's sourcetable is empty, so QGroundControl's mountpoint fetch shows nothing. Type `BASE` by hand.
+- RTK needs the WiFi link. If it drops, corrections stop and accuracy falls back to about 1.5 m.

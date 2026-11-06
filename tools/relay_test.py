@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Bench test for the mower's relay board, with no mower wiring attached.
 
-Sets only the relay parameters, reboots if needed, then lets you switch R1 and R2.
+Sets only the relay parameters, reboots if needed, then lets you switch R1, R2 and R3.
 Close QGroundControl first: only one program can use the USB port at a time.
 
     python3 -m venv .venv && . .venv/bin/activate && pip install pymavlink pyserial
@@ -19,14 +19,19 @@ from pymavlink import mavutil
 PARAMS = [
     ("SERVO9_FUNCTION", -1),
     ("SERVO10_FUNCTION", -1),
+    ("SERVO11_FUNCTION", -1),
     ("RELAY1_FUNCTION", 1),
     ("RELAY2_FUNCTION", 1),
+    ("RELAY3_FUNCTION", 1),
     ("RELAY1_PIN", 50),
     ("RELAY2_PIN", 51),
+    ("RELAY3_PIN", 52),
     ("RELAY1_DEFAULT", 0),
     ("RELAY2_DEFAULT", 0),
+    ("RELAY3_DEFAULT", 0),
     ("RELAY1_INVERTED", 1),
     ("RELAY2_INVERTED", 1),
+    ("RELAY3_INVERTED", 1),
 ]
 ROVER_TYPES = (mavutil.mavlink.MAV_TYPE_GROUND_ROVER, mavutil.mavlink.MAV_TYPE_SURFACE_BOAT)
 
@@ -123,7 +128,7 @@ def setup(conn, port):
 
 
 def set_relay(conn, number, on):
-    """number is 1 or 2. MAVLink numbers relays from 0."""
+    """number is 1, 2 or 3. MAVLink numbers relays from 0."""
     return send_command(conn, mavutil.mavlink.MAV_CMD_DO_SET_RELAY, number - 1, 1 if on else 0)
 
 
@@ -137,15 +142,15 @@ def main():
     print(f"Connecting on {port}. Nothing from the mower should be on the relay terminals.")
     conn = setup(connect(port), port)
 
-    print("\nBoth relays should be OFF now: no click since boot finished, LEDs out.")
-    print("Commands: 1on 1off 2on 2off, q to quit (both are switched off on exit).")
+    print("\nAll relays should be OFF now: no click since boot finished, LEDs out.")
+    print("Commands: 1on 1off 2on 2off 3on 3off, q to quit (all switched off on exit).")
     try:
         while True:
             text = input("> ").strip().lower()
             if text in ("q", "quit", "exit"):
                 break
-            if text not in ("1on", "1off", "2on", "2off"):
-                print("Use 1on, 1off, 2on, 2off, or q.")
+            if text not in ("1on", "1off", "2on", "2off", "3on", "3off"):
+                print("Use 1on, 1off, 2on, 2off, 3on, 3off, or q.")
                 continue
             ok = set_relay(conn, int(text[0]), text.endswith("on"))
             print("Sent." if ok else "The Pixhawk rejected that command.")
@@ -154,7 +159,8 @@ def main():
     finally:
         set_relay(conn, 1, False)
         set_relay(conn, 2, False)
-        print("Both relays commanded off.")
+        set_relay(conn, 3, False)
+        print("All relays commanded off.")
 
 
 if __name__ == "__main__":

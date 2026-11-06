@@ -1,0 +1,271 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Spiral Mow Planner</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+:root { --bg:#f7f6f2; --fg:#1d1d1b; --mut:#5f5e59; --line:#c9c6bd; --card:#ffffff; --acc:#c2410c; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg:#171716; --fg:#efeee9; --mut:#aaa8a0; --line:#3a3936; --card:#232321; --acc:#fb923c; } }
+html, body { height:100%; margin:0; }
+body { display:flex; height:100dvh; background:var(--bg); color:var(--fg);
+  font:14px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+aside { width:300px; flex:none; padding:14px 16px; overflow-y:auto; border-right:1px solid var(--line); box-sizing:border-box; }
+#map { flex:1; }
+h1 { font-size:17px; margin:0 0 4px; }
+.hint { color:var(--mut); font-size:12.5px; margin:0 0 12px; }
+fieldset { border:1px solid var(--line); border-radius:8px; padding:10px 12px; margin:0 0 12px; }
+legend { font-weight:650; font-size:13px; padding:0 4px; }
+label { display:flex; justify-content:space-between; align-items:center; gap:8px; margin:6px 0; }
+input[type=number] { width:80px; font:inherit; padding:4px 6px; border:1px solid var(--line); border-radius:6px; background:var(--card); color:var(--fg); }
+select { max-width:150px; font:inherit; padding:4px; border:1px solid var(--line); border-radius:6px; background:var(--card); color:var(--fg); }
+button { font:inherit; font-weight:600; padding:7px 10px; border:1px solid var(--line); border-radius:7px; background:var(--card); color:var(--fg); cursor:pointer; width:100%; margin:4px 0; }
+button.primary { background:var(--acc); border-color:var(--acc); color:#fff; }
+button:disabled { opacity:.5; cursor:default; }
+.row { display:flex; gap:6px; } .row button { width:auto; flex:1; }
+.stats { display:grid; grid-template-columns:auto auto; gap:2px 10px; font-variant-numeric:tabular-nums; }
+.stats span:nth-child(odd) { color:var(--mut); }
+.warn { color:var(--acc); font-size:12.5px; margin-top:6px; }
+@media (max-width:700px) { body { flex-direction:column; } aside { width:100%; height:45dvh; border-right:none; border-bottom:1px solid var(--line); } }
+</style>
+</head>
+<body>
+<aside>
+  <h1>Spiral mow planner</h1>
+  <p class="hint">Click the map to add boundary corners. Drag corners to move them, click a corner to remove it. Every turn is a single pivot.</p>
+
+  <fieldset>
+    <legend>Boundary</legend>
+    <div class="row">
+      <button id="clear">Clear</button>
+      <button id="undo">Undo</button>
+    </div>
+    <button id="load">Load boundary from .plan</button>
+    <input id="file" type="file" accept=".plan,application/json" hidden>
+    <button id="locate">Go to mower / my location</button>
+  </fieldset>
+
+  <fieldset>
+    <legend>Pattern</legend>
+    <label>Lane spacing (m) <input id="spacing" type="number" step="0.05" min="0.2" value="0.9"></label>
+    <label>Edge offset (m) <input id="edge" type="number" step="0.05" min="0" placeholder="auto"></label>
+    <p class="hint" style="margin:0">Boundary to first pass centre line. Draw the boundary on the fence and use half the mower width plus clearance. Blank = half the lane spacing.</p>
+    <label>Direction
+      <select id="dir"><option value="ccw">Counter-clockwise (left turns)</option><option value="cw">Clockwise (right turns)</option></select>
+    </label>
+    <label>Start near corner # <input id="start" type="number" step="1" min="1" value="1"></label>
+    <label>Speed for estimate (m/s) <input id="speed" type="number" step="0.1" min="0.1" value="0.5"></label>
+  </fieldset>
+
+  <fieldset>
+    <legend>Result</legend>
+    <div class="stats" id="stats"><span>Rings</span><span>-</span></div>
+    <div class="warn" id="warn"></div>
+  </fieldset>
+
+  <button class="primary" id="export" disabled>Export .plan for QGroundControl</button>
+  <p class="hint">Then QGroundControl: Plan, Open, choose the file, Upload. The plan also stores the boundary as a GeoFence, so it can be loaded back here.</p>
+</aside>
+<div id="map"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/clipper-lib@6.4.2/clipper.js"></script>
+<script>
+(function () {
+  var R = 6378137, SCALE = 1000, MIN_STEP = 0.05, MIN_TURN = 5, MIN_AREA = 0.5;
+  var map = L.map('map', { zoomControl: true, maxZoom: 23 }).setView([49.1, -122.5], 5);
+  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+    { maxZoom: 23, maxNativeZoom: 19, attribution: 'Imagery Esri' }).addTo(map);
+
+  var corners = [], markers = [], loadedPlan = null;
+  var boundaryLayer = L.polygon([], { color: '#facc15', weight: 2, fillOpacity: 0.08 }).addTo(map);
+  var pathLayer = L.polyline([], { color: '#ef4444', weight: 2.5 }).addTo(map);
+  var startDot = L.circleMarker([0, 0], { radius: 7, color: '#16a34a', fillOpacity: 1 });
+  var endDot = L.circleMarker([0, 0], { radius: 7, color: '#111', fillOpacity: 1 });
+  var $ = function (id) { return document.getElementById(id); };
+
+  function save() { try { localStorage.setItem('spiral-boundary', JSON.stringify(corners)); } catch (e) {} }
+
+  function redrawMarkers() {
+    markers.forEach(function (m) { map.removeLayer(m); });
+    markers = corners.map(function (c, i) {
+      var m = L.marker(c, { draggable: true, icon: L.divIcon({ className: '', html:
+        '<div style="width:18px;height:18px;border-radius:9px;background:#facc15;border:2px solid #000;' +
+        'font:600 10px sans-serif;display:flex;align-items:center;justify-content:center;color:#000">' + (i + 1) + '</div>',
+        iconSize: [18, 18], iconAnchor: [9, 9] }) }).addTo(map);
+      m.on('drag', function (e) { corners[i] = [e.latlng.lat, e.latlng.lng]; update(false); });
+      m.on('dragend', function () { save(); });
+      m.on('click', function () { corners.splice(i, 1); save(); update(true); });
+      return m;
+    });
+  }
+
+  map.on('click', function (e) { corners.push([e.latlng.lat, e.latlng.lng]); save(); update(true); });
+
+  // Local metres around the boundary centre (fine for a lawn).
+  function frame() {
+    var lat0 = 0, lon0 = 0;
+    corners.forEach(function (c) { lat0 += c[0]; lon0 += c[1]; });
+    lat0 /= corners.length; lon0 /= corners.length;
+    var k = Math.cos(lat0 * Math.PI / 180);
+    return {
+      fwd: function (c) { return [(c[1] - lon0) * Math.PI / 180 * R * k, (c[0] - lat0) * Math.PI / 180 * R]; },
+      back: function (p) { return [lat0 + p[1] / R * 180 / Math.PI, lon0 + p[0] / (R * k) * 180 / Math.PI]; }
+    };
+  }
+
+  function area(pts) { var a = 0; for (var i = 0; i < pts.length; i++) { var p = pts[i], q = pts[(i + 1) % pts.length]; a += p[0] * q[1] - q[0] * p[1]; } return a / 2; }
+
+  function rings(xy, spacing, cw, edge) {
+    var src = xy.map(function (p) { return { X: Math.round(p[0] * SCALE), Y: Math.round(p[1] * SCALE) }; });
+    var out = [], notes = [];
+    for (var k = 0; k < 500; k++) {
+      var co = new ClipperLib.ClipperOffset(5, 0.25 * SCALE);
+      co.AddPath(src, ClipperLib.JoinType.jtMiter, ClipperLib.EndType.etClosedPolygon);
+      var sol = new ClipperLib.Paths();
+      co.Execute(sol, -(edge + k * spacing) * SCALE);
+      var polys = sol.map(function (p) { return p.map(function (q) { return [q.X / SCALE, q.Y / SCALE]; }); })
+                     .filter(function (p) { return Math.abs(area(p)) >= MIN_AREA; });
+      if (!polys.length) break;
+      if (polys.length > 1) notes.push('Ring ' + (k + 1) + ' splits into ' + polys.length + ' pieces; only the largest is mowed.');
+      polys.sort(function (a, b) { return Math.abs(area(b)) - Math.abs(area(a)); });
+      var p = polys[0];
+      if ((area(p) > 0) === cw) p = p.slice().reverse();
+      out.push(p);
+    }
+    return { rings: out, notes: notes };
+  }
+
+  function dist(a, b) { return Math.hypot(a[0] - b[0], a[1] - b[1]); }
+  function rotateTo(ring, pt) {
+    var best = 0; ring.forEach(function (p, i) { if (dist(p, pt) < dist(ring[best], pt)) best = i; });
+    return ring.slice(best).concat(ring.slice(0, best));
+  }
+  function turnDeg(a, b, c) {
+    var h1 = Math.atan2(b[1] - a[1], b[0] - a[0]), h2 = Math.atan2(c[1] - b[1], c[0] - b[0]);
+    return Math.abs(((h2 - h1) * 180 / Math.PI + 540) % 360 - 180);
+  }
+  function simplify(path) {
+    var pts = [path[0]];
+    path.slice(1).forEach(function (p) { if (dist(p, pts[pts.length - 1]) >= MIN_STEP) pts.push(p); });
+    var out = [pts[0]];
+    for (var i = 1; i < pts.length - 1; i++) if (turnDeg(out[out.length - 1], pts[i], pts[i + 1]) >= MIN_TURN) out.push(pts[i]);
+    out.push(pts[pts.length - 1]);
+    return out;
+  }
+
+  // True spiral: each ring's last side stops one lane short of its first corner, which
+  // lies on the line of the next ring's first side, so one turn joins them.
+  function buildPath(rs, spacing, startPt) {
+    var path = [], start = startPt;
+    rs.forEach(function (ring, k) {
+      ring = rotateTo(ring, start);
+      start = ring[0];
+      path = path.concat(k === 0 ? ring : ring.slice(1));
+      var last = ring[ring.length - 1], first = ring[0], e = dist(last, first);
+      if (k + 1 < rs.length && e > spacing) {
+        var t = (e - spacing) / e;
+        path.push([last[0] + (first[0] - last[0]) * t, last[1] + (first[1] - last[1]) * t]);
+      } else path.push(first);
+    });
+    return simplify(path);
+  }
+
+  var current = null;
+  function update(markersToo) {
+    if (markersToo) redrawMarkers();
+    boundaryLayer.setLatLngs(corners);
+    current = null; pathLayer.setLatLngs([]); map.removeLayer(startDot); map.removeLayer(endDot);
+    $('warn').textContent = ''; $('export').disabled = true;
+    if (corners.length < 3) { $('stats').innerHTML = '<span>Corners</span><span>' + corners.length + ' of 3+</span>'; return; }
+    var spacing = parseFloat($('spacing').value), cw = $('dir').value === 'cw';
+    if (!(spacing > 0.05)) { $('warn').textContent = 'Set a lane spacing.'; return; }
+    var f = frame(), xy = corners.map(f.fwd);
+    var edgeIn = parseFloat($('edge').value), edge = edgeIn >= 0 ? edgeIn : spacing / 2;
+    var r = rings(xy, spacing, cw, edge);
+    if (!r.rings.length) { $('warn').textContent = 'Boundary is too small for that spacing.'; return; }
+    var si = (((parseInt($('start').value, 10) || 1) - 1) % xy.length + xy.length) % xy.length;
+    var path = buildPath(r.rings, spacing, xy[si]);
+    var len = 0, turns = 0, lefts = 0;
+    for (var i = 1; i < path.length; i++) len += dist(path[i - 1], path[i]);
+    for (i = 1; i < path.length - 1; i++) {
+      var a = path[i - 1], b = path[i], c = path[i + 1];
+      if (turnDeg(a, b, c) >= 20) {
+        turns++;
+        if ((b[0] - a[0]) * (c[1] - b[1]) - (b[1] - a[1]) * (c[0] - b[0]) > 0) lefts++;
+      }
+    }
+    var geo = path.map(f.back);
+    pathLayer.setLatLngs(geo);
+    startDot.setLatLng(geo[0]).addTo(map); endDot.setLatLng(geo[geo.length - 1]).addTo(map);
+    var speed = parseFloat($('speed').value) || 0.5, mins = (len / speed + turns * 8) / 60;
+    $('stats').innerHTML =
+      '<span>Area</span><span>' + Math.abs(area(xy)).toFixed(0) + ' m²</span>' +
+      '<span>Rings</span><span>' + r.rings.length + '</span>' +
+      '<span>Waypoints</span><span>' + geo.length + '</span>' +
+      '<span>Path</span><span>' + len.toFixed(0) + ' m</span>' +
+      '<span>Pivots</span><span>' + turns + ' (' + lefts + ' left, ' + (turns - lefts) + ' right)</span>' +
+      '<span>Time, rough</span><span>' + mins.toFixed(0) + ' min</span>';
+    $('warn').textContent = r.notes.concat(['Centre strip under one lane wide is left uncut.']).join(' ');
+    current = geo; $('export').disabled = false;
+  }
+
+  ['spacing', 'edge', 'dir', 'start', 'speed'].forEach(function (id) { $(id).addEventListener('input', function () { update(false); }); });
+  $('clear').onclick = function () { corners = []; save(); update(true); };
+  $('undo').onclick = function () { corners.pop(); save(); update(true); };
+  $('load').onclick = function () { $('file').click(); };
+  $('file').onchange = function () {
+    var file = this.files[0]; if (!file) return;
+    file.text().then(function (txt) {
+      var plan = JSON.parse(txt), poly = null, spacing = null;
+      ((plan.geoFence || {}).polygons || []).forEach(function (g) { if (!poly && g.inclusion !== false && (g.polygon || []).length >= 3) poly = g.polygon; });
+      ((plan.mission || {}).items || []).forEach(function (it) {
+        if (!poly && it.complexItemType === 'survey' && (it.polygon || []).length >= 3) {
+          poly = it.polygon;
+          spacing = ((it.TransectStyleComplexItem || {}).CameraCalc || {}).AdjustedFootprintSide;
+        }
+      });
+      if (!poly) { alert('No GeoFence or Survey polygon in that plan.'); return; }
+      loadedPlan = plan; corners = poly.map(function (p) { return [p[0], p[1]]; });
+      if (spacing) $('spacing').value = (+spacing).toFixed(2);
+      save(); update(true); map.fitBounds(boundaryLayer.getBounds().pad(0.3));
+    }).catch(function (e) { alert('Could not read that plan: ' + e.message); });
+    this.value = '';
+  };
+  $('locate').onclick = function () {
+    if (corners.length) { map.fitBounds(boundaryLayer.getBounds().pad(0.3)); return; }
+    map.locate({ setView: true, maxZoom: 20 });
+  };
+
+  $('export').onclick = function () {
+    if (!current) return;
+    var base = loadedPlan ? JSON.parse(JSON.stringify(loadedPlan)) : {
+      fileType: 'Plan', groundStation: 'QGroundControl', version: 1, rallyPoints: { points: [], version: 2 },
+      geoFence: { circles: [], polygons: [], version: 2 },
+      mission: { cruiseSpeed: 1, firmwareType: 3, globalPlanAltitudeMode: 1, hoverSpeed: 1, vehicleType: 10, version: 2 }
+    };
+    base.mission.items = current.map(function (p, i) {
+      return { autoContinue: true, command: 16, doJumpId: i + 1, frame: 3, params: [0, 0, 0, null, p[0], p[1], 0], type: 'SimpleItem' };
+    });
+    base.mission.plannedHomePosition = [current[0][0], current[0][1], 0];
+    base.geoFence = base.geoFence || { circles: [], version: 2 };
+    base.geoFence.polygons = [{ inclusion: true, polygon: corners.map(function (c) { return [c[0], c[1]]; }), version: 1 }];
+    var blob = new Blob([JSON.stringify(base, null, 4)], { type: 'application/json' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob); a.download = 'spiral mow.plan'; a.click();
+    setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
+  };
+
+  // Restore the last boundary, or one passed as #[[lat,lon],...] for sharing or testing.
+  try {
+    var h = decodeURIComponent(location.hash.slice(1));
+    corners = h ? JSON.parse(h) : JSON.parse(localStorage.getItem('spiral-boundary') || '[]');
+  } catch (e) { corners = []; }
+  update(true);
+  if (corners.length) map.fitBounds(boundaryLayer.getBounds().pad(0.3));
+})();
+</script>
+</body>
+</html>

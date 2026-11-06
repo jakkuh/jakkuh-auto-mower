@@ -10,7 +10,7 @@ local SOURCE = file:read("a")
 file:close()
 
 local LOOP_MS, BOOT_MS, OPEN_MS = 10, 3000, 300
-local R1, R2 = 0, 1
+local R1, R2, R3 = 0, 1, 2
 local MANUAL, HOLD, AUTO = 0, 4, 10
 
 -- Builds the mock world, loads the script, and returns the world.
@@ -63,6 +63,11 @@ local function new_world(opts)
         get_emergency_stop = function() return w.estop end,
     }
     _G.param = {get = function(_, n) return w.params[n] end}
+    w.rc_pwm, w.rc_valid, w.rc_link = 1500, true, 1492
+    _G.rc = {
+        has_valid_input = function() return w.rc_valid end,
+        get_pwm = function(_, ch) if ch == 5 then return w.rc_pwm end if ch == 2 then return w.rc_link end return 1500 end,
+    }
     local attitude = {
         get_roll = function() return math.rad(w.roll) end,
         get_pitch = function() return math.rad(w.pitch) end,
@@ -94,7 +99,15 @@ local function new_world(opts)
     end
 
     local src = SOURCE
-    for pattern, replacement in pairs(opts.patch or {}) do
+    -- Logic tests use +1 signs, so expected outputs read as the doc formula. Pass
+    -- field_signs = true to keep the signs measured on the mower.
+    local patches = {}
+    if not opts.field_signs then
+        patches["local FORE_AFT_SIGN   = %-1"] = "local FORE_AFT_SIGN   = 1"
+        patches["local DIFF_SIGN       = %-1"] = "local DIFF_SIGN       = 1"
+    end
+    for k, v in pairs(opts.patch or {}) do patches[k] = v end
+    for pattern, replacement in pairs(patches) do
         local count
         src, count = src:gsub(pattern, replacement)
         assert(count == 1, "patch did not match: " .. pattern)
@@ -140,13 +153,19 @@ local function commands_to(w, ...)
     return n
 end
 
+-- Formula tests use the doc's +1 sign. The field value is checked separately.
+local SIGN_PLUS = {["local DIFF_SIGN       = %-1"] = "local DIFF_SIGN       = 1",
+                   ["local FORE_AFT_SIGN   = %-1"] = "local FORE_AFT_SIGN   = 1"}
+
 local CONFIRMED = {["local R2_WIRING_CONFIRMED = false"] = "local R2_WIRING_CONFIRMED = true"}
 
 local tests = {}
 local function test(name, fn) tests[#tests + 1] = {name = name, fn = fn} end
 
+local NO_LIFT = {["local STEER_DEADZONE_US  = 25"] = "local STEER_DEADZONE_US  = 0"}
+
 test("conversion matches the doc formula", function()
-    local w = new_world()
+    local w = new_world({patch = NO_LIFT})
     arm_and_boot(w)
     for _, c in ipairs({
         {1500, 1500, 1500, 1500}, {1700, 1700, 1700, 1500}, {1300, 1300, 1300, 1500},
@@ -162,7 +181,9 @@ end)
 
 test("outputs clamp to 1000-2000", function()
     local w = new_world({patch = {["local FORE_AFT_GAIN   = 1.0"] = "local FORE_AFT_GAIN   = 5.0",
-                                  ["local DIFF_GAIN       = 1.0"] = "local DIFF_GAIN       = 5.0"}})
+                                  ["local DIFF_GAIN       = 1.0"] = "local DIFF_GAIN       = 5.0",
+                                  ["local DIFF_SIGN       = %-1"] = "local DIFF_SIGN       = 1",
+                                  ["local FORE_AFT_SIGN   = %-1"] = "local FORE_AFT_SIGN   = 1"}})
     arm_and_boot(w)
     w.left, w.right = 2000, 1000
     run(w, LOOP_MS)
@@ -175,12 +196,20 @@ test("outputs clamp to 1000-2000", function()
     assert(w.out[0] == 1000)
 end)
 
-test("sign constants flip the output", function()
-    local w = new_world({patch = {["local FORE_AFT_SIGN   = 1"] = "local FORE_AFT_SIGN   = -1"}})
+test("field DIFF_SIGN -1: a right turn command gives differential below neutral", function()
+    local w = new_world({field_signs = true})
+    arm_and_boot(w)
+    w.left, w.right = 1700, 1300
+    run(w, LOOP_MS)
+    assert(w.out[0] == 1500 and w.out[2] == 1300, "D" .. tostring(w.out[2]))
+end)
+
+test("field FORE_AFT_SIGN -1: a forward command gives fore-aft below neutral", function()
+    local w = new_world({field_signs = true})
     arm_and_boot(w)
     w.left, w.right = 1700, 1700
     run(w, LOOP_MS)
-    assert(w.out[0] == 1300)
+    assert(w.out[0] == 1300 and w.out[2] == 1500)
 end)
 
 test("0, nil, and out-of-window inputs give neutral on both outputs", function()
@@ -576,6 +605,236 @@ test("Rover 4.7 attitude names are preferred when present", function()
     w.roll = 40
     run(w, 600)
     assert(not w.armed)
+end)
+
+local STARTER = {
+    ["local R2_WIRING_CONFIRMED = false"] = "local R2_WIRING_CONFIRMED = true",
+    ["local STARTER_WIRING_CONFIRMED = false"] = "local STARTER_WIRING_CONFIRMED = true",
+}
+
+test("starter: no R3 command while unconfirmed", function()
+    local w = new_world({patch = CONFIRMED})
+    w.rc_pwm = 1000
+    run(w, 1000)
+    assert(commands_to(w, R3) == 0)
+end)
+
+test("starter: needs R2 confirmed, else fault", function()
+    local w = new_world({patch = {["local STARTER_WIRING_CONFIRMED = false"] = "local STARTER_WIRING_CONFIRMED = true"}})
+    run(w, 100)
+    assert(has_msg(w, "starter needs R2"))
+    assert(w.relays[R3] ~= true)
+end)
+
+test("starter: cranks only while held, off on release", function()
+    local w = new_world({patch = STARTER})
+    run(w, 100)
+    assert(w.relays[R3] == false)
+    w.rc_pwm = 1000
+    run(w, 500)
+    assert(w.relays[R3] == true, "cranking while held")
+    w.rc_pwm = 1500
+    run(w, 2 * LOOP_MS)
+    assert(w.relays[R3] == false, "off on release")
+end)
+
+test("starter: held at boot does not crank until released", function()
+    local w = new_world({patch = STARTER})
+    w.rc_pwm = 1000
+    run(w, 1000)
+    assert(w.relays[R3] ~= true)
+    w.rc_pwm = 1500
+    run(w, 100)
+    w.rc_pwm = 1000
+    run(w, 100)
+    assert(w.relays[R3] == true)
+end)
+
+test("starter: capped at 2.5 s, needs release and rest before next crank", function()
+    local w = new_world({patch = STARTER})
+    run(w, 100)
+    w.rc_pwm = 1000
+    run(w, 2400)
+    assert(w.relays[R3] == true)
+    run(w, 200)
+    assert(w.relays[R3] == false, "cap")
+    run(w, 6000)
+    assert(w.relays[R3] == false, "still held: no re-crank")
+    w.rc_pwm = 1500
+    run(w, 100)
+    w.rc_pwm = 1000
+    run(w, 100)
+    assert(w.relays[R3] == true, "rest already passed")
+    w.rc_pwm = 1500
+    run(w, 100)
+    w.rc_pwm = 1000
+    run(w, 1000)
+    assert(w.relays[R3] == false, "inside rest window")
+end)
+
+test("starter: never while armed, stops on arm", function()
+    local w = new_world({patch = STARTER})
+    run(w, 100)
+    w.rc_pwm = 1000
+    run(w, 200)
+    assert(w.relays[R3] == true)
+    w.armed = true
+    run(w, 2 * LOOP_MS)
+    assert(w.relays[R3] == false)
+    w.rc_pwm = 1500
+    run(w, 6000)
+    w.rc_pwm = 1000
+    run(w, 500)
+    assert(w.relays[R3] == false, "armed")
+end)
+
+test("starter: never after engine kill latch, or on radio loss", function()
+    local w = new_world({patch = STARTER})
+    arm_and_boot(w)
+    w.armed = false
+    run(w, 1000)
+    w.rc_pwm = 1500
+    run(w, 6000)
+    w.rc_pwm = 1000
+    run(w, 500)
+    assert(w.relays[R3] == false, "killed latch")
+    local v = new_world({patch = STARTER})
+    run(v, 100)
+    v.rc_pwm = 1000
+    run(v, 200)
+    assert(v.relays[R3] == true)
+    v.rc_valid = false
+    run(v, 2 * LOOP_MS)
+    assert(v.relays[R3] == false, "radio loss")
+end)
+
+test("starter: fault and tilt open R3", function()
+    local w = new_world({patch = STARTER})
+    run(w, 100)
+    w.rc_pwm = 1000
+    run(w, 200)
+    w.roll = 45
+    run(w, 2 * LOOP_MS)
+    assert(w.relays[R3] == false, "tilt")
+    local v = new_world({patch = STARTER})
+    run(v, 100)
+    v.rc_pwm = 1000
+    run(v, 200)
+    v.input_error = true
+    v.channels[94] = 1
+    run(v, 1100)
+    assert(v.relays[R3] == false, "fault")
+end)
+
+test("starter: radio values of 0 do not count as held", function()
+    local w = new_world({patch = STARTER})
+    w.rc_pwm = 0
+    run(w, 500)
+    assert(w.relays[R3] ~= true)
+end)
+
+test("radio: CH2 at 995 while armed disarms after 0.2 s", function()
+    local w = new_world()
+    arm_and_boot(w)
+    w.rc_link = 995
+    run(w, 100)
+    assert(w.armed, "too fast")
+    run(w, 150)
+    assert(not w.armed and has_msg(w, "radio lost"))
+end)
+
+test("radio: no valid RC input disarms", function()
+    local w = new_world()
+    arm_and_boot(w)
+    w.rc_valid = false
+    run(w, 300)
+    assert(not w.armed)
+end)
+
+test("radio: a short CH2 glitch does not disarm", function()
+    local w = new_world()
+    arm_and_boot(w)
+    w.rc_link = 995
+    run(w, 100)
+    w.rc_link = 1492
+    run(w, 500)
+    assert(w.armed)
+end)
+
+test("radio: arming while lost is undone", function()
+    local w = new_world()
+    w.rc_link = 995
+    run(w, 500)
+    w.armed = true
+    run(w, 2 * LOOP_MS)
+    assert(not w.armed)
+end)
+
+test("radio: lost blocks the starter", function()
+    local w = new_world({patch = STARTER})
+    run(w, 100)
+    w.rc_link = 995
+    run(w, 300)
+    w.rc_pwm = 1000
+    run(w, 300)
+    assert(w.relays[R3] ~= true)
+end)
+
+test("radio: the full live CH2 range counts as linked", function()
+    for _, v in ipairs({1070, 1492, 1920}) do
+        local w = new_world()
+        w.rc_link = v
+        arm_and_boot(w)
+        run(w, 500)
+        assert(w.armed, "CH2 " .. v)
+    end
+end)
+
+test("convert: counter-rotating request becomes a pure pivot", function()
+    local w = new_world({patch = NO_LIFT})
+    arm_and_boot(w)
+    w.left, w.right = 1395, 1999
+    run(w, LOOP_MS)
+    assert(w.out[0] == 1500, "fore " .. w.out[0])
+    assert(w.out[2] == 1198 or w.out[2] == 1199, "diff " .. w.out[2])
+    w.left, w.right = 1700, 1600
+    run(w, LOOP_MS)
+    assert(w.out[0] == 1650 and w.out[2] == 1550, "same-direction passes through")
+end)
+
+test("radio: lost in Auto keeps going, other modes disarm", function()
+    local w = new_world()
+    w.mode = AUTO
+    arm_and_boot(w)
+    w.rc_link = 995
+    run(w, 500)
+    assert(w.armed, "Auto should continue")
+    w.mode = MANUAL
+    run(w, 3 * LOOP_MS)
+    assert(not w.armed, "Manual should disarm")
+end)
+
+test("steering dead-zone lift applies only while driving", function()
+    local w = new_world()
+    arm_and_boot(w)
+    w.left, w.right = 1930, 1870   -- driving forward, df = +30
+    run(w, LOOP_MS)
+    assert(w.out[2] >= 1500 + 25 + 28 and w.out[2] <= 1500 + 25 + 29, "lifted diff " .. w.out[2])
+    w.left, w.right = 1908, 1892   -- df = +8, below the lift threshold
+    run(w, LOOP_MS)
+    assert(w.out[2] == 1508, "tiny diff passes " .. w.out[2])
+    w.left, w.right = 1520, 1480   -- slow, no lift (pivot-ish)
+    run(w, LOOP_MS)
+    assert(w.out[0] == 1500 and w.out[2] == 1520, "no lift when not driving")
+end)
+
+test("ArduPilot Lua limit: under 100 top-level locals", function()
+    local n = 0
+    for line in SOURCE:gmatch("[^\n]+") do
+        if line:match("^local ") then n = n + 1 end
+    end
+    -- ArduPilot's embedded Lua stops at 100 in the main chunk; desktop Lua allows 200.
+    assert(n <= 90, n .. " top-level locals, keep a margin under 100")
 end)
 
 local failed = 0
