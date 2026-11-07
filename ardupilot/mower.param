@@ -44,9 +44,12 @@ AHRS_EKF_TYPE,3
 # heading matching the mower. 25 is also level but heading is 180 off; 24 and 29 read
 # upside down. Redo if the board is remounted, then level-calibrate
 AHRS_ORIENTATION,34
-# 3 = GPS heading, compass fallback until the 982 heading locks. Set 2 (GPS only) and
-# COMPASS_USE 0 once GPS heading is reliable
-EK3_SRC1_YAW,3
+# 2 = GPS heading only (UM982 dual antenna). The compass disagreed with GPS on this
+# frame, so it is off. Needs RTK or a good 3D fix before the EKF has a heading
+EK3_SRC1_YAW,2
+COMPASS_USE,0
+COMPASS_USE2,0
+COMPASS_USE3,0
 
 # --- Telemetry. ESP32 on TELEM1 (SERIAL1)
 SERIAL1_PROTOCOL,2
